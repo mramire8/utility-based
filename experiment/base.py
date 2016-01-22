@@ -12,7 +12,7 @@ import utilities.configutils as cfgutil
 from sklearn import cross_validation
 import numpy as np
 from collections import defaultdict
-from learner.strategy import BootstrapFromEach, AMTBootstrapFromEach
+from learner.strategy import BootstrapFromEach
 from sklearn.datasets import base as bunch
 from time import time
 
@@ -54,6 +54,12 @@ class Experiment(object):
         return data
 
     def _sample_data(self, data, train_idx, test_idx):
+
+        def sentence_iterator(data):
+            for doc in data:
+                for snip in doc:
+                    yield snip
+
         sample = bunch.Bunch(train=bunch.Bunch(), test=bunch.Bunch())
 
         if len(test_idx) > 0: #if there are test indexes
@@ -68,6 +74,7 @@ class Experiment(object):
 
             sample.target_names = data.target_names
             sample.train.remaining = []
+
         else:
             ## Just shuffle the data and vectorize
             sample = data
@@ -81,6 +88,24 @@ class Experiment(object):
             sample.test.bow = self.vct.transform(data.test.data)
 
             sample.train.remaining = []
+
+        snippets = self.sent_tokenizer.tokenize_sents(sample.train.data)
+        snippet_bow = self.vct.transform(sentence_iterator(snippets))
+        sizes = np.array([len(snip) for snip in snippets])
+        cost = np.array([self.costfn(s) for s in sentence_iterator(snippets)])
+
+        sample.train.snippets=snippet_bow
+        sample.train.sizes=sizes
+        sample.train.snippet_cost = cost
+
+        snippets = self.sent_tokenizer.tokenize_sents(sample.test.data)
+        snippet_bow = self.vct.transform(sentence_iterator(snippets))
+        sizes = np.array([len(snip) for snip in snippets])
+        cost = np.array([self.costfn(s) for s in sentence_iterator(snippets)])
+
+        sample.test.snippets=snippet_bow
+        sample.test.sizes=sizes
+        sample.test.snippet_cost = cost
 
         return sample.train, sample.test
 
@@ -128,7 +153,7 @@ class Experiment(object):
 
         # data related config
         config = cfgutil.get_section_options(config_obj, 'data')
-        self.split = config['split']
+        # self.split = config['split']
         self.data_cat = config['categories']
         self.limit = config['limit']
         self.data_path = config['path']
@@ -145,9 +170,9 @@ class Experiment(object):
         print "%s %.3f secs (%.3f mins)" % (msg, (t1-t0), (t1-t0)/60)
 
     def start(self):
-        print self.get_name()
         trial = []
         self._setup_options(self.config)
+        print self.get_name()
         t0 = time()
         self.data = datautil.load_dataset(self.dataname, self.data_path, categories=self.data_cat, rnd=self.seed,
                                           shuffle=True, percent=self.split, keep_subject=True)
@@ -181,16 +206,14 @@ class Experiment(object):
     def get_name(self):
         cfg = cfgutil.get_section_options(self.config, 'learner')
         post = cfgutil.get_section_option(self.config, 'experiment', 'fileprefix')
-        name = "data-{}-lrn-{}-ut-{}-snip-{}-cal-{}{}".format(self.dataname, cfg['type'], cfg['utility'],
-                                                              cfg['snippet'], cfg['calibration'], post)
+        name = "data-{}-lrn-{}-ut-{}-snip-{}-{}".format(self.dataname, cfg['type'], cfg['loss_function'],
+                                                              cfg['snippet'],  post)
         return name
 
     def bootstrap(self, pool, bt, train, bt_method=None):
         # get a bootstrap
-        if bt_method is None:
-            bt_obj = BootstrapFromEach(None, seed=self.seed)
-        elif bt_method == 'amt-tfe':
-            bt_obj = AMTBootstrapFromEach(None, seed=self.seed)
+        # if bt_method is None:
+        bt_obj = BootstrapFromEach(None, seed=self.seed)
 
         initial = bt_obj.bootstrap(pool, step=bt, shuffle=False)
 

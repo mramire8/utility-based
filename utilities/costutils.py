@@ -9,6 +9,16 @@ def unit_cost(query, cost_model=None):
         n = len(query)
     return [1.] * n
 
+def word_cost(query, cost_model=None):
+    c = 0
+    if isinstance(query, dict):
+        x_text = query.snippet
+    else:
+        x_text = query
+    if x_text is not None:
+        c = [len(x.split()) for x in x_text]
+
+    return c
 
 def intra_cost(query, cost_model=None):
     if cost_model is None:

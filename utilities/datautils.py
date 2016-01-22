@@ -470,27 +470,13 @@ def load_dataset(name, path, categories=None, rnd=2356, shuffle=True, percent=.5
 
     if "imdb" == name:
         ########## IMDB MOVIE REVIEWS ###########
-
         data = load_imdb(path, shuffle=shuffle, rnd=rnd)  # should bring data as is
-    elif "amt_imdb" in name:
-        ########## IMDB MOVIE REVIEWS ###########
-        from amt_datautils import load_amt_imdb
-        data = load_amt_imdb(path, shuffle=shuffle, rnd=rnd, amt_labels=labels)  # should bring with training labels as the amt annotations
-    elif "sraa" in name:
-        ########## sraa dataset ######
-        data = load_aviation(path, shuffle=shuffle, rnd=rnd, percent=percent, keep_suject=keep_subject)
     elif "20news" in name:
         ########## 20 news groups ######
         data = load_20newsgroups(category=categories, shuffle=shuffle, rnd=rnd)
     elif "arxiv" in name:
         ##########  arxiv dataset ######
         data = load_arxiv(path, category=categories, subset='all', shuffle=shuffle, rnd=rnd, percent=percent)
-    elif "twitter-gender" in name:
-        ########## gender from twitter timeline ######
-        data = load_gender_twitter(path, shuffle=shuffle, rnd=rnd, percent=percent)
-    elif "twitter" in name:
-        ########## twitter dataset bot vs human ######
-        data = load_twitter(path, shuffle=shuffle, rnd=rnd)
     else:
         raise Exception("We do not know {} dataset".format(name.upper()))
 

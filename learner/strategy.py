@@ -2,7 +2,7 @@ import numpy as np
 from base import Learner
 from sklearn.datasets import base as bunch
 from scipy.sparse import vstack
-
+from copy import copy
 
 class RandomSampling(Learner):
     """docstring for RandomSampling"""
@@ -129,10 +129,11 @@ class StructuredLearner(ActiveLearner):
     def fit(self, X, y, doc_text=None, limit=None):
         # fit student
         self.model.fit(X, y)
+
         #fit sentence
-        sx, sy = self.convert_to_sentence(doc_text, y, self.sent_tokenizer, limit=limit)
-        sx = self.vct.transform(sx)
-        self.snippet_model.fit(sx, sy)
+        # sx, sy = self.convert_to_sentence(doc_text, y, self.sent_tokenizer, limit=limit)
+        # sx = self.vct.transform(sx)
+        # self.snippet_model.fit(sx, sy)
 
         return self
 
@@ -185,21 +186,17 @@ class StructuredLearner(ActiveLearner):
     #
     #     return np.array(sent_target)
 
-
     def set_utility(self, util):
-        if util == 'rnd':
-            self.utility = self._utility_rnd
-        elif util == 'unc':
-            self.utility = self._utility_unc
+        self.utility = getattr(self, util)
 
     def set_snippet_utility(self, util):
-        if util == 'rnd':
-            self.snippet_utility = self._snippet_rnd
-        elif util == 'sr':
-            self.snippet_utility = self._snippet_max
-        elif util == 'first1' or util == 'true':
-            self.snippet_utility = self._snippet_first
-
+        # if util == 'rnd':
+        #     self.snippet_utility = self._snippet_rnd
+        # elif util == 'sr':
+        #     self.snippet_utility = self._snippet_max
+        # elif util == 'first1' or util == 'true':
+        #     self.snippet_utility = self._snippet_first
+        self.snippet_utility = getattr(self, util)
 
     def set_sent_tokenizer(self, tokenizer):
         self.sent_tokenizer = tokenizer
@@ -215,8 +212,8 @@ class StructuredLearner(ActiveLearner):
     #     else:
     #         return p.max(axis=1)
     #
-    # def _snippet_rnd(self, X):
-    #     return self.sent_rnd.random_sample(X.shape[0])
+    def _snippet_rnd(self, X):
+        return self.sent_rnd.random_sample(X.shape[0])
     #
     # def _snippet_first(self, X):
     #     n = X.shape[0]
@@ -336,7 +333,7 @@ class Joint(StructuredLearner):
         return query
 
 
-    def expected_utlity(self, data, candidates):
+    def expected_utility(self, data, candidates):
         labels = self.model.classes 
         tra_y = self.current_training_labels
         tra_x = self.current_training
@@ -362,6 +359,7 @@ class Joint(StructuredLearner):
         probs = self.snippet_model.predict_proba(snippets) # one per snippet
 
         exp_util = []
+
         for i,ut in enumerate(utilities):
             exp  = probs[start:end][:, 0] * ut[0][2]  + probs[start:end][:, 1] * ut[1][2] 
             exp_util.extend((exp)) # one per snippet

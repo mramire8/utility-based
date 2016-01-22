@@ -1,5 +1,5 @@
 from sklearn.datasets import base as bunch
-from learner.strategy import Joint, Sequential
+from learner.strategy import Joint
 import numpy as np
 from nltk import RegexpTokenizer
 from nltk.stem import PorterStemmer
@@ -40,7 +40,6 @@ def stemming(doc):
 def get_vectorizer(config):
     limit = config['limit']
     vectorizer = config['vectorizer']
-    min_size = config['min_size']
 
     from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
 
@@ -90,13 +89,14 @@ def get_learner(learn_config, vct=None, sent_tk=None, seed=None, cost_model=None
     clf = get_classifier(cl_name, parameter=learn_config['parameter'])
     learner = Learner(clf)
     if learn_config['type'] == 'utility-based':
-        learner = UtilityBased(clf, snippet_fn=None, utility_fn=None, seed=seed)
+        from learner.utility_based import UtilityBasedLearner
+        learner = UtilityBasedLearner(clf, snippet_fn=None, utility_fn=None, seed=seed)
     else:
         raise ValueError("We don't know {} leaner".format(learn_config['type']))
-    learner.set_utility(learn_config['utility'])
+    # learner.set_utility(learn_config['loss_function'])
+    learner.set_loss_function(learn_config['loss_function'])
     learner.set_snippet_utility(learn_config['snippet'])
     learner.set_sent_tokenizer(sent_tk)
-    learner.set_calibration_method(learn_config['calibration'])
     learner.set_vct(vct)
     learner.set_cost_model(cost_model)
     learner.set_cost_fn(get_costfn(learn_config['cost_function']))
@@ -106,8 +106,8 @@ def get_learner(learn_config, vct=None, sent_tk=None, seed=None, cost_model=None
 
 def get_expert(config, size=None):
 
-    from expert.experts import PredictingExpert, SentenceExpert, \
-        TrueExpert, NoisyExpert, ReluctantSentenceExpert, ReluctantDocumentExpert, \
+    from expert.experts import PredictingExpert, \
+        TrueExpert, NoisyExpert, ReluctantDocumentExpert, \
         PerfectReluctantDocumentExpert, TrueReluctantExpert
     from expert.noisy_expert import NoisyReluctantDocumentExpert
 
@@ -214,14 +214,15 @@ def get_tokenizer(tk_name, **kwargs):
 
 
 def get_costfn(fn_name):
-    from costutils import intra_cost, unit_cost
-    if fn_name == 'unit':
-        return unit_cost
-    elif fn_name == 'variable_cost':
-        return intra_cost
-    else:
-        raise Exception("Unknown cost function")
-
+    # from costutils import intra_cost, unit_cost
+    # if fn_name == 'unit':
+    #     return unit_cost
+    # elif fn_name == 'variable_cost':
+    #     return intra_cost
+    # else:
+    #     raise Exception("Unknown cost function")
+    import costutils
+    return getattr(costutils, fn_name)
 
 # def unit_cost(X):
 #     return X.shape[0]
