@@ -76,51 +76,52 @@ class StructuredLearner(ActiveLearner):
 
     def set_cost_model(self, model):
         self.cost_model = model
+
     def set_cost_fn(self, fn):
         self.cost_fn = fn
 
-    @staticmethod
-    def convert_to_sentence(X_text, y, sent_tk, limit=None):
-        """
-        >>> import nltk
-        >>> sent_tk = nltk.data.load('tokenizers/punkt/english.pickle')
-        >>> print StructuredLearner.convert_to_sentence(['hi there. you rock. y!'], [1], sent_tk, limit=2)
-        (['hi there.', 'you rock.'], [1, 1])
-        """
-        sent_train = []
-        labels = []
-
-        ## Convert the documents into sentences: train
-        # for t, sentences in zip(y, sent_tk.batch_tokenize(X_text)):
-        for t, sentences in zip(y, sent_tk.tokenize_sents(X_text)):
-            if limit > 0:
-                sents = [s for s in sentences if len(s.strip()) > limit]
-            elif limit == 0 or limit is None:
-                sents = [s for s in sentences]
-
-            sent_train.extend(sents)  # at the sentences separately as individual documents
-
-            labels.extend(StructuredLearner._get_sentence_labels(t,len(sents)))  # Give the label of the document to all its sentences
-
-        return sent_train, labels  # , dump
-
-    @staticmethod
-    def _get_sentence_labels(t, n):
-        '''
-        For a set of sentences get the corresponding labels
-        :param t:
-        :param n:
-        :return:
-        '''
-        if isinstance(t, list):
-            # the sentences are labeled individually
-            if len(t) == n:
-                return t
-            else:
-                raise Exception("Error: number of labels should be %s" % n)
-        else:
-            # only the document label is available, propagate to sentences
-            return [t] * n
+    # @staticmethod
+    # def convert_to_sentence(X_text, y, sent_tk, limit=None):
+    #     """
+    #     >>> import nltk
+    #     >>> sent_tk = nltk.data.load('tokenizers/punkt/english.pickle')
+    #     >>> print StructuredLearner.convert_to_sentence(['hi there. you rock. y!'], [1], sent_tk, limit=2)
+    #     (['hi there.', 'you rock.'], [1, 1])
+    #     """
+    #     sent_train = []
+    #     labels = []
+    #
+    #     ## Convert the documents into sentences: train
+    #     # for t, sentences in zip(y, sent_tk.batch_tokenize(X_text)):
+    #     for t, sentences in zip(y, sent_tk.tokenize_sents(X_text)):
+    #         if limit > 0:
+    #             sents = [s for s in sentences if len(s.strip()) > limit]
+    #         elif limit == 0 or limit is None:
+    #             sents = [s for s in sentences]
+    #
+    #         sent_train.extend(sents)  # at the sentences separately as individual documents
+    #
+    #         labels.extend(StructuredLearner._get_sentence_labels(t,len(sents)))  # Give the label of the document to all its sentences
+    #
+    #     return sent_train, labels  # , dump
+    #
+    # @staticmethod
+    # def _get_sentence_labels(t, n):
+    #     '''
+    #     For a set of sentences get the corresponding labels
+    #     :param t:
+    #     :param n:
+    #     :return:
+    #     '''
+    #     if isinstance(t, list):
+    #         # the sentences are labeled individually
+    #         if len(t) == n:
+    #             return t
+    #         else:
+    #             raise Exception("Error: number of labels should be %s" % n)
+    #     else:
+    #         # only the document label is available, propagate to sentences
+    #         return [t] * n
 
     def get_name(self):
         return "{}{}".format(self.utility.__name__, self.snippet_utility.__name__)
@@ -135,18 +136,18 @@ class StructuredLearner(ActiveLearner):
 
         return self
 
-    def _utility_rnd(self, X):
-        if X.shape[0] == 1:
-            return self.rnd_state.random_sample()
-        else:
-            return self.rnd_state.random_sample(X.shape[0])
-
-    def _utility_unc(self, X):
-        p = self.model.predict_proba(X)
-        if X.shape[0] == 1:
-            return 1. - p.max()
-        else:
-            return 1. - p.max(axis=1)
+    # def _utility_rnd(self, X):
+    #     if X.shape[0] == 1:
+    #         return self.rnd_state.random_sample()
+    #     else:
+    #         return self.rnd_state.random_sample(X.shape[0])
+    #
+    # def _utility_unc(self, X):
+    #     p = self.model.predict_proba(X)
+    #     if X.shape[0] == 1:
+    #         return 1. - p.max()
+    #     else:
+    #         return 1. - p.max(axis=1)
 
     def _subsample_pool(self, X):
         raise NotImplementedError("Implement in the subclass")
@@ -154,11 +155,11 @@ class StructuredLearner(ActiveLearner):
     def _compute_utility(self, X):
         return self.utility(X)
 
-    def to_matrix(self, snip_bows):
-        data= snip_bows[0]
-        for s in snip_bows[1:]:
-            data = vstack([data, s], format='csr')
-        return data
+    # def to_matrix(self, snip_bows):
+    #     data= snip_bows[0]
+    #     for s in snip_bows[1:]:
+    #         data = vstack([data, s], format='csr')
+    #     return data
 
     def _query(self, pool, snippets, indices, snippet_index, bow=None):
         q = bunch.Bunch()
@@ -174,60 +175,16 @@ class StructuredLearner(ActiveLearner):
         q.index = indices
         return q
 
-    def _get_target(self, targets, indices):
-        sent_target = []
-        for t, i in zip(targets, indices):
-            if isinstance(t, list):
-                sent_target.append(t[i])
-            else:
-                sent_target.append(t)
+    # def _get_target(self, targets, indices):
+    #     sent_target = []
+    #     for t, i in zip(targets, indices):
+    #         if isinstance(t, list):
+    #             sent_target.append(t[i])
+    #         else:
+    #             sent_target.append(t)
+    #
+    #     return np.array(sent_target)
 
-        return np.array(sent_target)
-
-    def _do_calibration(self, scores, y_pred):
-        """
-        perform calibration on the scores per sentence
-        :param socres: scores per document sentences as computed by  _Snippet_fn
-        :param y_pred: prediction of the sentences as predicted by $P_S$. This predictions are shift by adding +1
-            thus class 0 appears as 1, class 1 as 2, and so on.
-        :raise NotImplementedError:
-        """
-        raise NotImplementedError("This method should be assigned from configuration")
-
-    def zscores_pred(self, scores, y_pred):
-        # if self.calibrate:
-        from sklearn import preprocessing
-        # prediction +1 to preserve the spcarcity of the matrix
-        c0_scores = scores[y_pred == (0+1)]
-        c1_scores = scores[y_pred == (1+1)]
-        c0_scores = preprocessing.scale(c0_scores)
-        c1_scores = preprocessing.scale(c1_scores)
-        scores[y_pred == (0+1)] = c0_scores
-        scores[y_pred == (1+1)] = c1_scores
-        return scores
-        # else:
-        #     return scores
-    
-    def zscores_rank(self, scores, y_pred):
-        
-        from sklearn import preprocessing
-        # prediction +1 to preserve the spcarcity of the matrix
-        _scores = np.array(scores)
-        _scores[y_pred == 1] = scores[y_pred == 1]
-        _scores[y_pred == 2] = 1. - scores[y_pred == 2]
-        
-        median_score = np.median(_scores[y_pred>0])
-        
-        rank1_indices = np.bitwise_and(_scores > median_score, y_pred > 0)
-        rank2_indices = np.bitwise_and(_scores <= median_score, y_pred > 0)
-        
-        _scores[rank1_indices] = preprocessing.scale(_scores[rank1_indices])
-        _scores[rank2_indices] = preprocessing.scale(1. - _scores[rank2_indices])
-        
-        return _scores
-
-    def _no_calibrate(self, scores, y_pred):
-        return scores
 
     def set_utility(self, util):
         if util == 'rnd':
@@ -243,8 +200,6 @@ class StructuredLearner(ActiveLearner):
         elif util == 'first1' or util == 'true':
             self.snippet_utility = self._snippet_first
 
-    def set_calibration_method(self, cal_name):
-        self._do_calibration = getattr(self, cal_name)
 
     def set_sent_tokenizer(self, tokenizer):
         self.sent_tokenizer = tokenizer
@@ -252,84 +207,86 @@ class StructuredLearner(ActiveLearner):
     def set_vct(self, vct):
         self.vct = vct
 
-    def set_calibration(self, cali):
-        self.calibrate = cali
-
     ## SNIPPET UTILITY FUNCTIONS
-    def _snippet_max(self, X):
-        p = self.snippet_model.predict_proba(X)
-        if X.shape[0] == 1:
-            return p.max()
-        else:
-            return p.max(axis=1)
-
-    def _snippet_rnd(self, X):
-        return self.sent_rnd.random_sample(X.shape[0])
-
-    def _snippet_first(self, X):
-        n = X.shape[0]
-        scores = np.zeros(n)
-        scores[0] = 1
-        return scores
-
-    def _snippet_cost(self, snips):
-        # return np.array([self.cost_fn(xi, cost_model=self.cost_model) for xi in snips])
-        return np.array(self.cost_fn(snips, cost_model=self.cost_model))
-
-    def _create_matrix(self, x_sent, x_len):
-
-        X = np.zeros((len(x_sent), x_len))
-
-        return X
-
-    def _get_sentences(self, x_text):
-        text = self.sent_tokenizer.tokenize_sents(x_text)
-        text_min = []
-        for sentences in text:
-            text_min.append([s for s in sentences if len(s.strip()) > 2])  # at least 2 characters
-        return text_min
-
+    # def _snippet_max(self, X):
+    #     p = self.snippet_model.predict_proba(X)
+    #     if X.shape[0] == 1:
+    #         return p.max()
+    #     else:
+    #         return p.max(axis=1)
+    #
+    # def _snippet_rnd(self, X):
+    #     return self.sent_rnd.random_sample(X.shape[0])
+    #
+    # def _snippet_first(self, X):
+    #     n = X.shape[0]
+    #     scores = np.zeros(n)
+    #     scores[0] = 1
+    #     return scores
+    #
+    # def _snippet_cost(self, snips):
+    #     # return np.array([self.cost_fn(xi, cost_model=self.cost_model) for xi in snips])
+    #     return np.array(self.cost_fn(snips, cost_model=self.cost_model))
+    #
+    # def _create_matrix(self, x_sent, x_len):
+    #
+    #     X = np.zeros((len(x_sent), x_len))
+    #
+    #     return X
+    #
+    # def _get_sentences(self, x_text):
+    #     text = self.sent_tokenizer.tokenize_sents(x_text)
+    #     text_min = []
+    #     for sentences in text:
+    #         text_min.append([s for s in sentences if len(s.strip()) > 2])  # at least 2 characters
+    #     return text_min
+    #
     def _get_snippets(self, x_text):
-        x_sent_bow = []
-        x_len = 0
-        x_sent = self._get_sentences(x_text)
-        for sentences in x_sent:
-            x_sent_bow.append(self.vct.transform(sentences))
-            x_len = max(len(sentences), x_len)
-        return x_sent_bow, x_sent, x_len
+    #     x_sent_bow = []
+    #     x_len = 0
+    #     x_sent = self._get_sentences(x_text)
+    #     for sentences in x_sent:
+    #         x_sent_bow.append(self.vct.transform(sentences))
+    #         x_len = max(len(sentences), x_len)
+    #     return x_sent_bow, x_sent, x_len
+        pass
 
-    def snippet_roi(self, s, s_text):
-        return self.snippet_utility(s) / self._snippet_cost(s_text)
+    # def snippet_roi(self, s, s_text):
+    #     return self.snippet_utility(s) / self._snippet_cost(s_text)
 
     def _compute_snippet(self, x_text):
         """select the snippet with the best score for each document"""
-        # scores = super(Joint, self)._compute_snippet(x_text)
-        import sys
-        x_sent_bow, x_sent, x_len = self._get_snippets(x_text)
+        # # scores = super(Joint, self)._compute_snippet(x_text)
+        # import sys
+        x_sent_bow, x_sent, x_len = self._get_snippets(x_text) # a matrix of all snippets (stacked), and the size
 
-        x_scores = self._create_matrix(x_sent, x_len)
-        y_pred = self._create_matrix(x_sent, x_len)
+        snip_prob = self.snippet_model.predict_proba(x_sent_bow)
 
-        for i, s in enumerate(x_sent_bow):
-            score_i = np.ones(x_len) * -1 * sys.maxint
-            y_pred_i = np.zeros(x_len)
-
-            score_i[:s.shape[0]] = self.snippet_roi(s, x_sent[i])
-            y_pred_i[:s.shape[0]] = self.snippet_model.predict(s) + 1  # add 1 to avoid prediction 0, keep the sparsity
-            x_scores[i] = score_i
-            y_pred[i] = y_pred_i
-
-        x_scores = self._do_calibration(x_scores, y_pred)
-
-        # Note: this works only if the max score is always > 0
-        sent_index = x_scores.argmax(axis=1)   # within each document the sentence with the max score
-
-        sent_max = x_scores.max(axis=1)   # within each document the sentence with the max score
-        sent_text = [x_sent[i][maxx] for i, maxx in enumerate(sent_index)]
-        sent_text = np.array(sent_text, dtype=object)
-        sent_bow = np.array([x_sent_bow[i][maxx] for i,maxx in enumerate(sent_index)], dtype=object)
-
-        return sent_max, sent_text, sent_index, sent_bow
+        #
+        # x_scores = self._create_matrix(x_sent, x_len)
+        # y_pred = self._create_matrix(x_sent, x_len)
+        #
+        # for i, s in enumerate(x_sent_bow):
+        #     score_i = np.ones(x_len) * -1 * sys.maxint
+        #     y_pred_i = np.zeros(x_len)
+        #
+        #     score_i[:s.shape[0]] = self.snippet_roi(s, x_sent[i])
+        #     y_pred_i[:s.shape[0]] = self.snippet_model.predict(s) + 1  # add 1 to avoid prediction 0, keep the sparsity
+        #     x_scores[i] = score_i
+        #     y_pred[i] = y_pred_i
+        #
+        # x_scores = self._do_calibration(x_scores, y_pred)
+        #
+        # # Note: this works only if the max score is always > 0
+        # sent_index = x_scores.argmax(axis=1)   # within each document the sentence with the max score
+        #
+        # sent_max = x_scores.max(axis=1)   # within each document the sentence with the max score
+        # sent_text = [x_sent[i][maxx] for i, maxx in enumerate(sent_index)]
+        # sent_text = np.array(sent_text, dtype=object)
+        # sent_bow = np.array([x_sent_bow[i][maxx] for i,maxx in enumerate(sent_index)], dtype=object)
+        #
+        # return sent_max, sent_text, sent_index, sent_bow
+        pass
 
     def __str__(self):
         return "{}(model={}, snippet_model={}, utility={}, snippet={})".format(self.__class__.__name__, self.model,
@@ -353,30 +310,45 @@ class Joint(StructuredLearner):
         x_text = pool.data[subpool]
         return x, x_text, subpool
 
-    def next(self, pool, step):
-        x, x_text, subpool = self._subsample_pool(pool)
-
-        # compute utlity
-        utility = self._compute_utility(x)
-
-        #comput best snippet
-        snippet, snippet_text, sent_index, sent_bow = self._compute_snippet(x_text)
-
-        #multiply
-        joint = utility * snippet
-        order = np.argsort(joint)[::-1]
-        index = [subpool[i] for i in order[:step]]
-
-        #build the query
-        query = self._query(pool, snippet_text[order][:step], index, sent_index[order][:step], bow=sent_bow[order][:step])
-        return query
+    # def next(self, pool, step):
+    #     x, x_text, subpool = self._subsample_pool(pool)
+    #
+    #     # compute utlity
+    #     utility = self._compute_utility(x)
+    #
+    #     #comput best snippet
+    #     snippet, snippet_text, sent_index, sent_bow = self._compute_snippet(x_text)
+    #
+    #     #multiply
+    #     joint = utility * snippet
+    #     order = np.argsort(joint)[::-1]
+    #     index = [subpool[i] for i in order[:step]]
+    #
+    #     #build the query
+    #     query = self._query(pool, snippet_text[order][:step], index, sent_index[order][:step], bow=sent_bow[order][:step])
+    #     return query
 
     def next(self, pool, step):
 
         #_subsample_pool
         #compute expected utility 
         # select max expected utility 
-        pass
+        x, x_text, subpool = self._subsample_pool(pool)
+    #
+    #     # compute utlity
+    #     utility = self._compute_utility(x)
+    #
+    #     #comput best snippet
+    #     snippet, snippet_text, sent_index, sent_bow = self._compute_snippet(x_text)
+    #
+    #     #multiply
+    #     joint = utility * snippet
+    #     order = np.argsort(joint)[::-1]
+    #     index = [subpool[i] for i in order[:step]]
+    #
+    #     #build the query
+    #     query = self._query(pool, snippet_text[order][:step], index, sent_index[order][:step], bow=sent_bow[order][:step])
+    #     return query
 
     def expected_utlity(self, pool):
 
@@ -401,4 +373,5 @@ class Joint(StructuredLearner):
         # undo
         pass
 
-    def evaluation_on_validation(self, clf, )
+    def evaluation_on_validation(self, clf, ):
+        pass

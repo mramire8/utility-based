@@ -19,13 +19,13 @@ from time import time
 class Experiment(object):
     """Main experiment class to run according to configuration"""
     # def __init__(self, dataname, learner, expert, trials=5, folds=1, split=.5, costfn=None):
-    def __init__(self, dataname, config, verbose=False, debug=False):
+    def __init__(self, config, verbose=False, debug=False):
         super(Experiment, self).__init__()
         self.verbose = verbose
         self.debug = debug
         self.config = config
 
-        self.dataname = dataname
+        self.dataname = None
         self.data_cat = None
         self.data = None
         self.data_path = None
@@ -118,6 +118,7 @@ class Experiment(object):
         self.prefix = config['fileprefix']
         self.output = config['outputdir']
         self.seed = config['seed']
+        self.dataname = config['data']
         # self.bootstrap_size = config['bootstrap']
         self.bootstrap_size, self.bootstrap_method = exputil.get_bootstrap(config)
         self.costfn = exputil.get_costfn(config['costfunction'])
@@ -169,6 +170,7 @@ class Experiment(object):
 
             # do active learning
             results = self.main_loop(learner, expert, self.budget, self.bootstrap_size, train, test)
+
             self.print_lap("\nTrial %s" % t, t0)
 
             # save the results
@@ -287,9 +289,6 @@ class Experiment(object):
                 # bootstrap
                 train = self.bootstrap(pool, bootstrap, train, bt_method=self.bootstrap_method)
 
-                # for q, t in zip(train.index, train.target):
-                #     pool.remaining.remove(q)
-
                 learner = self.retrain(learner, pool, train)
             else:
                 # select query and query labels
@@ -305,7 +304,9 @@ class Experiment(object):
 
                 if self.debug:
                     self._debug(learner, expert, query)
+
                 query_size = self.query_size(query)
+
             # evaluate student
             step_results = self.evaluate(learner, test)
 
@@ -343,7 +344,7 @@ class Experiment(object):
         return cost, perf, std, n
 
     def _extrapolate(self, t_perf, t_cost, cost_25, step_size=10):
-    # def extrapolate_trials(tr, cost_25=8.2, step_size=10):
+        # def extrapolate_trials(tr, cost_25=8.2, step_size=10):
         '''
         Extrapolate the x-axis information per trial, to create an average later.
         Trials is a list of each trial performance, where each trial has the cost and
@@ -422,54 +423,3 @@ class Experiment(object):
                                                       ex_prob[i][0], ex_prob[i][1], query.snippet[i].encode('utf-8'))
             # print
 
-
-class AMT_Experiment(Experiment):
-
-    """Main experiment class to run according to configuration"""
-    def __init__(self, dataname, config, verbose=False, debug=False):
-        super(AMT_Experiment, self).__init__(dataname, config, verbose=verbose, debug=debug)
-        self.bt_bow = []
-
-    def retrain(self, learner, pool, train):
-        from scipy.sparse import vstack
-
-        # Document text from the  bootstrap
-        text1 = pool.alldata[train.index[:self.bootstrap_size]]
-        # if len(self.bt_bow) == 0:
-        if isinstance(self.bt_bow, list):
-            # get the bow of the data for bootstrap from the original documents, different set than amt
-            self.bt_bow = self.vct.transform(text1)
-
-        # Add the AMT portion
-        x2 = pool.bow[train.index[self.bootstrap_size:]]
-        # X = pool.bow[train.index]
-        X = []
-        if x2.shape[0] > 0:
-            # X = vstack((self.bt_bow, x2))
-            X = vstack([self.bt_bow, x2], format='csr')
-        else:
-            X = self.bt_bow
-
-        # Actual target, includes bootstrap and other
-        y = train.target
-
-        # Get training document text
-        text = list(text1)
-        text.extend(pool.data[train.index[self.bootstrap_size:]])
-
-        return learner.fit(X, y, doc_text=text)
-
-    # def main_loop(self, learner, expert, budget, bootstrap, pool, test):
-    #     pass
-
-    def bootstrap(self, pool, bt, train, bt_method=None):
-        # get a bootstrap
-        bt_obj = AMTBootstrapFromEach(None, seed=self.seed)
-
-        initial = bt_obj.bootstrap(pool, step=bt, shuffle=False)
-
-        # update initial training data
-        train.index = initial
-        train.target = pool.alltarget[initial].tolist()
-
-        return train
