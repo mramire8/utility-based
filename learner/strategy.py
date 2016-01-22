@@ -297,11 +297,20 @@ class StructuredLearner(ActiveLearner):
 class Joint(StructuredLearner):
     """docstring for Joint"""
 
-    def __init__(self, model, snippet_fn=None, utility_fn=None, seed=1):
+    def __init__(self, model, snippet_fn=None, utility_fn=None, minimax=-1,  seed=1):
         super(Joint, self).__init__(model, snippet_fn=snippet_fn, utility_fn=utility_fn, seed=seed)
-        self.current_training = None
+        self.current_training = []
+        self.current_training_labels = []
+        self.minimax = minimax
+        self.validation_index=[]
+        self.loss_fn = None
 
-
+    def set_minimax(minimax):
+        if minimax =='maximize':
+            self.minimax = -1
+        else:
+            self.minimax = 1
+    
     def _subsample_pool(self, pool):
         subpool = list(pool.remaining)
         self.rnd_state.shuffle(subpool)
@@ -310,51 +319,52 @@ class Joint(StructuredLearner):
         x_text = pool.data[subpool]
         return x, x_text, subpool
 
-    # def next(self, pool, step):
-    #     x, x_text, subpool = self._subsample_pool(pool)
-    #
-    #     # compute utlity
-    #     utility = self._compute_utility(x)
-    #
-    #     #comput best snippet
-    #     snippet, snippet_text, sent_index, sent_bow = self._compute_snippet(x_text)
-    #
-    #     #multiply
-    #     joint = utility * snippet
-    #     order = np.argsort(joint)[::-1]
-    #     index = [subpool[i] for i in order[:step]]
-    #
-    #     #build the query
-    #     query = self._query(pool, snippet_text[order][:step], index, sent_index[order][:step], bow=sent_bow[order][:step])
-    #     return query
-
+    
     def next(self, pool, step):
 
-        #_subsample_pool
-        #compute expected utility 
-        # select max expected utility 
         x, x_text, subpool = self._subsample_pool(pool)
-    #
-    #     # compute utlity
-    #     utility = self._compute_utility(x)
-    #
-    #     #comput best snippet
-    #     snippet, snippet_text, sent_index, sent_bow = self._compute_snippet(x_text)
-    #
-    #     #multiply
-    #     joint = utility * snippet
-    #     order = np.argsort(joint)[::-1]
-    #     index = [subpool[i] for i in order[:step]]
-    #
-    #     #build the query
-    #     query = self._query(pool, snippet_text[order][:step], index, sent_index[order][:step], bow=sent_bow[order][:step])
-    #     return query
 
-    def expected_utlity(self, pool):
+        util = self.expected_utility(x) # util list of (utility_score, snipet index of max)
 
-        # compute utililty per document
-            # if added pos
-            # if added neg
+        order = np.argsort([u[0] for u in util])[::self.minimax]
+
+        index = [subpool[i] for i in order[:step]]
+
+        #build the query
+        query = self._query(pool, snippet_text[order][:step], index, sent_index[order][:step], bow=sent_bow[order][:step])
+        
+        return query
+
+
+    def expected_utlity(self, data, candidates):
+        labels = self.model.classes 
+        tra_y = self.current_training_labels
+        tra_x = self.current_training
+        clf  = copy(self.model)
+        utilities = []  # two per document
+        for i, x_i in enumerate(candidates):
+            tra_x.append(x_i)
+            uts = []
+
+            for lbl in labels:
+                tra_y.append(lbl)
+                clf.fit(data[tra_x], tra_y)
+                u = self.evaluation_on_validation(clf, data[self.validation_index])
+                uts.append((i, lbl, u))
+
+            utilities.append(uts)
+
+            # undo training
+            tra_y = tra_y[:-1]
+            tra_x = tra_x[:-1]
+
+        snippets = self._get_snippets(data)
+        probs = self.snippet_model.predict_proba(snippets) # one per snippet
+
+        exp_util = []
+        for i,ut in enumerate(utilities):
+            exp  = probs[start:end][:, 0] * ut[0][2]  + probs[start:end][:, 1] * ut[1][2] 
+            exp_util.extend((exp)) # one per snippet
 
         # for every snippet compute probabiliyt
         # for every snippet compute expectation of utility 
@@ -373,5 +383,16 @@ class Joint(StructuredLearner):
         # undo
         pass
 
-    def evaluation_on_validation(self, clf, ):
-        pass
+
+    def evaluation_on_validation(self, clf, data):
+        loss = self.loss_fn(clf, data)
+
+        return loss
+
+    def fit(self, X, y, doc_text=None, limit=None, train_index=[]):
+
+        super(Joint, self).fit(X, y, doc_text=doc_text, limit=limit)
+        self.current_training.extend(train_index)
+        self.current_training_labels.extend(y)
+        return self
+

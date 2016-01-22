@@ -61,54 +61,6 @@ class PredictingExpert(BaseExpert):
         return self
 
 
-class SentenceExpert(PredictingExpert):
-    """docstring for SentenceExpert"""
-
-    def __init__(self, oracle, tokenizer=None):
-        super(SentenceExpert, self).__init__(oracle)
-        self.tokenizer = tokenizer
-
-    def convert_to_sentence(self, X, y, vct, limit=None):
-        sent_train = []
-        labels = []
-        tokenizer = vct.build_tokenizer()
-        ## Convert the documents into sentences: train
-        for t, sentences in zip(y, self.tokenizer.tokenize_sents(X)):
-            if limit is None:
-                sents = [s for s in sentences if len(tokenizer(s)) > 1]
-            elif limit > 0:
-                sents = [s for s in sentences if len(s.strip()) > limit]
-            elif limit == 0:
-                sents = [s for s in sentences]
-            sent_train.extend(sents)  # at the sentences separately as individual documents
-            labels.extend([t] * len(sents))  # Give the label of the document to all its sentences
-
-        return sent_train, labels  # , dump
-
-    def fit(self, X_text, y=None, vct=None):
-        sx, sy = self.convert_to_sentence(X_text, y, vct)
-        sx = vct.transform(sx)
-        self.oracle.fit(sx, sy)
-        return self
-
-
-class ReluctantSentenceExpert(SentenceExpert):
-
-    def __init__(self, oracle, reluctant_threshold, tokenizer=None, seed=43212):
-        super(ReluctantSentenceExpert, self).__init__(oracle, tokenizer=tokenizer)
-        self.reluctant_threhold = reluctant_threshold
-        self.rnd = np.random.RandomState(seed)
-
-    def label(self, data, y=None):
-        prediction = np.array([None] * data.shape[0], dtype=object)
-        proba = self.oracle.predict_proba(data)
-        pred = self.oracle.predict(data)
-        unc = proba.min(axis=1)
-        prediction[unc < self.reluctant_threhold] = pred[unc < self.reluctant_threhold]
-
-        return prediction
-
-
 class ReluctantDocumentExpert(PredictingExpert):
 
     def __init__(self, oracle, reluctant_threshold, seed=43212):
