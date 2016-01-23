@@ -107,9 +107,7 @@ def get_learner(learn_config, vct=None, sent_tk=None, seed=None, cost_model=None
 def get_expert(config, size=None):
 
     from expert.experts import PredictingExpert, \
-        TrueExpert, NoisyExpert, ReluctantDocumentExpert, \
-        PerfectReluctantDocumentExpert, TrueReluctantExpert
-    from expert.noisy_expert import NoisyReluctantDocumentExpert
+        TrueExpert, NoisyExpert, TrueReluctantExpert
 
     cl_name = config['model']
     clf = get_classifier(cl_name, parameter=config['parameter'])
@@ -118,35 +116,12 @@ def get_expert(config, size=None):
         expert = TrueExpert(None)
     elif config['type'] == 'pred':
         expert = PredictingExpert(clf)
-    elif config['type'] == 'sent':
-        tk = get_tokenizer(config['sent_tokenizer'])
-        expert = SentenceExpert(clf, tokenizer=tk)
     elif config['type'] == 'noisy':
         p = config['noise_p']
         expert = NoisyExpert(None, p)
-    elif config['type'] == 'neutral':
-        p = config['threshold']
-        tk = get_tokenizer(config['sent_tokenizer'])
-        expert = ReluctantSentenceExpert(clf, p, tokenizer=tk)
-    elif config['type'] == 'docneutral' or config['type'] == 'noisyreluctant' :
-        p = config['threshold']
-        expert = ReluctantDocumentExpert(clf, p)
-    elif config['type'] == 'perfectreluctant': # reluctant based on unc threshold
-        p = config['threshold']
-        expert = PerfectReluctantDocumentExpert(clf, p)
-
-    elif config['type'] == 'noisyreluctantscale': # reluctant based on unc threshold, noisy based on CE
-        p = config['threshold']
-        args = {'factor': config['scale'], 'data_size': size}
-
-        expert = NoisyReluctantDocumentExpert(clf, p, **args)
-
     elif config['type'] == 'truereluctant':  # reluctant based on p probability
         p = config['neutral_p']
         expert = TrueReluctantExpert(None, p)
-    elif config['type']== 'amtexpert':
-        from expert.amt_expert import AMTExpert
-        expert = AMTExpert(None)
     else:
         raise Exception("We don't know {} expert".format(config['type']))
 
@@ -165,14 +140,6 @@ def get_tokenizer(tk_name, **kwargs):
     if tk_name == 'nltk':
         import nltk
         sent_detector = nltk.data.load('tokenizers/punkt/english.pickle')
-        return sent_detector
-    elif tk_name == 'twits' or tk_name == 'tweets':
-        from twit_token import TwitterSentenceTokenizer
-        sent_detector = TwitterSentenceTokenizer()
-        return sent_detector
-    elif tk_name == 'amt-sent' or tk_name == 'amt':
-        from amt_tokenizer import AMTSentenceTokenizer
-        sent_detector = AMTSentenceTokenizer()
         return sent_detector
     elif tk_name == 'snippet':
         from snippet_tokenizer import SnippetTokenizer

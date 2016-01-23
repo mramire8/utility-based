@@ -11,10 +11,11 @@ import utilities.datautils as datautil
 import utilities.configutils as cfgutil
 from sklearn import cross_validation
 import numpy as np
-from collections import defaultdict
+from collections import defaultdict, deque
 from learner.strategy import BootstrapFromEach
 from sklearn.datasets import base as bunch
 from time import time
+
 
 class Experiment(object):
     """Main experiment class to run according to configuration"""
@@ -153,7 +154,7 @@ class Experiment(object):
 
         # data related config
         config = cfgutil.get_section_options(config_obj, 'data')
-        # self.split = config['split']
+        self.split = config['split']
         self.data_cat = config['categories']
         self.limit = config['limit']
         self.data_path = config['path']
@@ -229,9 +230,11 @@ class Experiment(object):
 
         return train
 
-    def update_cost(self, current_cost, query):
-
-        return current_cost + sum(self.costfn(query, cost_model=self.cost_model))
+    def update_cost(self, current_cost, pool, query):
+        cost = 0
+        for di, si in query:
+            cost += pool.snippet_cost[di][si]
+        return current_cost + cost
 
     def query_size(self, query):
         pass
@@ -272,12 +275,11 @@ class Experiment(object):
         return results
 
     def update_pool(self, pool, query, labels, train):
-        ## remove from remaining
-        for q, t in zip(query.index, labels):
+        for q, l in zip(query, labels):
             pool.remaining.remove(q)
-            if t is not None:  # if the answer is not neutral
+            if l is not None:
                 train.index.append(q)
-                train.target.append(t)
+                train.target.append(l)
 
         return pool, train
 
@@ -289,15 +291,32 @@ class Experiment(object):
 
         return learner.fit(X, y, doc_text=text)
 
+
+    def get_query(self, data, query):
+
+        ranges = np.cumsum(data.sizes)
+        queries = []
+        for di, si in query:
+            queries.append(data.snippets[0 if di==0 else ranges[di-1]:ranges[di]][si])
+
+        return queries
+
+    def split_validation(self, remaining):
+        remaining = list(remaining)
+        n = len(remaining)
+        half = int(n * self.split)
+        return deque(remaining[:half]), list(remaining[half:])
+
+
+
     def main_loop(self, learner, expert, budget, bootstrap, pool, test):
-        from collections import deque
 
         iteration = 0
         current_cost = 0
         rnd_set = range(pool.target.shape[0])
         self.rnd_state.shuffle(rnd_set)
         remaining = deque(rnd_set)
-        pool.remaining = remaining
+        pool.remaining, pool.validation = self.split_validation(remaining)
 
         ## record keeping
         results = self._start_results()
@@ -316,11 +335,11 @@ class Experiment(object):
             else:
                 # select query and query labels
                 query = learner.next(pool, self.step)
-                labels = expert.label(query, y=query.target)
+                labels = expert.label(self.get_query(pool,query), y=[pool.target[di] for di, _ in query])
 
                 # update pool and cost
                 pool, train = self.update_pool(pool, query, labels, train)
-                current_cost = self.update_cost(current_cost, query)
+                current_cost = self.update_cost(current_cost, pool, query)
 
                 # re-train the learner
                 learner = self.retrain(learner, pool, train)

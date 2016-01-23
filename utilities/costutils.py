@@ -15,8 +15,11 @@ def word_cost(query, cost_model=None):
         x_text = query.snippet
     else:
         x_text = query
-    if x_text is not None:
-        c = [len(x.split()) for x in x_text]
+    if isinstance(x_text, str):
+        c = len(x_text.split())
+    elif isinstance(x_text, list):
+        if x_text is not None:
+            c = [len(x.split()) for x in x_text]
 
     return c
 

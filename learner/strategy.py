@@ -163,18 +163,7 @@ class StructuredLearner(ActiveLearner):
     #     return data
 
     def _query(self, pool, snippets, indices, snippet_index, bow=None):
-        q = bunch.Bunch()
-        q.data = pool.bow[indices]
-        if bow is not None:
-            q.bow = self.to_matrix(bow)
-        else:
-            q.bow = self.vct.transform(snippets)
-        q.text = pool.data[indices]
-
-        q.target = self._get_target(pool.target[indices], snippet_index)
-        q.snippet = snippets
-        q.index = indices
-        return q
+        pass
 
     # def _get_target(self, targets, indices):
     #     sent_target = []
@@ -190,12 +179,6 @@ class StructuredLearner(ActiveLearner):
         self.utility = getattr(self, util)
 
     def set_snippet_utility(self, util):
-        # if util == 'rnd':
-        #     self.snippet_utility = self._snippet_rnd
-        # elif util == 'sr':
-        #     self.snippet_utility = self._snippet_max
-        # elif util == 'first1' or util == 'true':
-        #     self.snippet_utility = self._snippet_first
         self.snippet_utility = getattr(self, util)
 
     def set_sent_tokenizer(self, tokenizer):
@@ -238,24 +221,31 @@ class StructuredLearner(ActiveLearner):
     #         text_min.append([s for s in sentences if len(s.strip()) > 2])  # at least 2 characters
     #     return text_min
     #
-    def _get_snippets(self, x_text):
-    #     x_sent_bow = []
-    #     x_len = 0
-    #     x_sent = self._get_sentences(x_text)
-    #     for sentences in x_sent:
-    #         x_sent_bow.append(self.vct.transform(sentences))
-    #         x_len = max(len(sentences), x_len)
-    #     return x_sent_bow, x_sent, x_len
-        pass
+
+    def _get_snippets(self, data, candidates):
+        ranges = np.cumsum(data.sizes)
+    #     print 0 if i==0 else ranges[i-1],ranges[i]
+        snips = []
+        for i in candidates:
+            snips.append(data.snippets[0 if i==0 else ranges[i-1]:ranges[i]])
+        return snips
+
+    def _get_probs_per_snippet(self, data, candidates):
+        ranges = np.cumsum(data.sizes)
+    #     print 0 if i==0 else ranges[i-1],ranges[i]
+        snips = []
+        for i in candidates:
+            snips.append(data.snippets[0 if i==0 else ranges[i-1]:ranges[i]])
+        return snips
 
     # def snippet_roi(self, s, s_text):
     #     return self.snippet_utility(s) / self._snippet_cost(s_text)
 
-    def _compute_snippet(self, x_text):
+    def _compute_snippet(self, pool):
         """select the snippet with the best score for each document"""
         # # scores = super(Joint, self)._compute_snippet(x_text)
         # import sys
-        x_sent_bow, x_sent, x_len = self._get_snippets(x_text) # a matrix of all snippets (stacked), and the size
+        x_sent_bow, x_sent, x_len = self._get_snippets(pool) # a matrix of all snippets (stacked), and the size
 
         snip_prob = self.snippet_model.predict_proba(x_sent_bow)
 
@@ -302,35 +292,36 @@ class Joint(StructuredLearner):
         self.validation_index=[]
         self.loss_fn = None
 
-    def set_minimax(minimax):
+    def set_minimax(self, minimax):
         if minimax =='maximize':
             self.minimax = -1
         else:
             self.minimax = 1
     
-    def _subsample_pool(self, pool):
-        subpool = list(pool.remaining)
+    def _subsample_pool(self, rem):
+        subpool = list(rem)
         self.rnd_state.shuffle(subpool)
         subpool = subpool[:250]
-        x = pool.bow[subpool]
-        x_text = pool.data[subpool]
-        return x, x_text, subpool
+
+        return subpool
 
     
     def next(self, pool, step):
 
-        x, x_text, subpool = self._subsample_pool(pool)
+        subpool = self._subsample_pool(pool.remaining)
 
-        util = self.expected_utility(x) # util list of (utility_score, snipet index of max)
+        util = self.expected_utility(pool, subpool) # util list of (utility_score, snipet index of max)
 
-        order = np.argsort([u[0] for u in util])[::self.minimax]
+        max_util = [np.argsort(p)[::self.minimax][0] for p in util]  # snippet per document with max/min utility
 
-        index = [subpool[i] for i in order[:step]]
+        order = np.argsort([util[i][u] for i,u in enumerate(max_util)])[::self.minimax]  # document with snippet utlity max
+
+        index = [(subpool[i], max_util[i]) for i in order[:step]]
 
         #build the query
-        query = self._query(pool, snippet_text[order][:step], index, sent_index[order][:step], bow=sent_bow[order][:step])
+        # query = self._query(pool, snippet_text[order][:step], index, sent_index[order][:step], bow=sent_bow[order][:step])
         
-        return query
+        return index
 
 
     def expected_utility(self, data, candidates):
@@ -345,30 +336,29 @@ class Joint(StructuredLearner):
 
             for lbl in labels:
                 tra_y.append(lbl)
-                clf.fit(data[tra_x], tra_y)
-                u = self.evaluation_on_validation(clf, data[self.validation_index])
+                clf.fit(data.bow[tra_x], tra_y)
+                u = self.evaluation_on_validation(clf, data.bow[data.validation])
                 uts.append((i, lbl, u))
+                # undo labels
+                tra_y = tra_y[:-1]
 
             utilities.append(uts)
 
-            # undo training
-            tra_y = tra_y[:-1]
+            # undo training instance
             tra_x = tra_x[:-1]
 
-        snippets = self._get_snippets(data)
-        probs = self.snippet_model.predict_proba(snippets) # one per snippet
+        snippets = self._get_snippets(data, candidates)
+        probs = [self.snippet_model.predict_proba(snip) for snip in snippets] # one per snippet
 
         exp_util = []
 
-        for i,ut in enumerate(utilities):
-            exp  = probs[start:end][:, 0] * ut[0][2]  + probs[start:end][:, 1] * ut[1][2] 
-            exp_util.extend((exp)) # one per snippet
+        for ut, pr in zip(utilities, probs):
 
-        # for every snippet compute probabiliyt
-        # for every snippet compute expectation of utility 
+            exp  = pr[:, 0] * ut[0][2]  + pr[:, 1] * ut[1][2]
+            exp_util.extend([exp]) # one per snippet
 
+        return exp_util
 
-        pass
 
     def compute_utility(self, x, current_training):
         # copy current training data
