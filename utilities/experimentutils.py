@@ -93,9 +93,7 @@ def get_learner(learn_config, vct=None, sent_tk=None, seed=None, cost_model=None
         learner = UtilityBasedLearner(clf, snippet_fn=None, utility_fn=None, seed=seed)
     else:
         raise ValueError("We don't know {} leaner".format(learn_config['type']))
-    # learner.set_utility(learn_config['loss_function'])
     learner.set_loss_function(learn_config['loss_function'])
-    learner.set_snippet_utility(learn_config['snippet'])
     learner.set_sent_tokenizer(sent_tk)
     learner.set_vct(vct)
     learner.set_cost_model(cost_model)
