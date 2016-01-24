@@ -1,5 +1,6 @@
 from base import BaseExpert
 import numpy as np
+from scipy.sparse import vstack
 
 class TrueExpert(BaseExpert):
     """docstring for TrueExpert"""
@@ -108,7 +109,8 @@ class PerfectReluctantDocumentExpert(PredictingExpert):
             n = data.shape[0]
 
         prediction = np.array([self.neutral_value] * n)
-        proba = np.array([self.oracle.predict_proba(d)[0] for d in data])
+        data = vstack(data)
+        proba = self.oracle.predict_proba(data)
         unc = 1. - proba.max(axis=1)
         prediction[unc < self.reluctant_threhold] = y[unc < self.reluctant_threhold]
 
