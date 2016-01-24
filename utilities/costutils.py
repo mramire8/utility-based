@@ -11,11 +11,14 @@ def unit_cost(query, cost_model=None):
 
 def word_cost(query, cost_model=None):
     c = 0
+    if isinstance(query, int):
+        return query
+
     if isinstance(query, dict):
         x_text = query.snippet
     else:
         x_text = query
-    if isinstance(x_text, str):
+    if isinstance(x_text, unicode):
         c = len(x_text.split())
     elif isinstance(x_text, list):
         if x_text is not None:

@@ -93,7 +93,7 @@ class Experiment(object):
         snippets = self.sent_tokenizer.tokenize_sents(sample.train.data)
         snippet_bow = self.vct.transform(sentence_iterator(snippets))
         sizes = np.array([len(snip) for snip in snippets])
-        cost = np.array([self.costfn(s) for s in sentence_iterator(snippets)])
+        cost = np.array([[self.costfn(si) for si in s] for s in snippets])
 
         sample.train.snippets=snippet_bow
         sample.train.sizes=sizes
@@ -102,7 +102,8 @@ class Experiment(object):
         snippets = self.sent_tokenizer.tokenize_sents(sample.test.data)
         snippet_bow = self.vct.transform(sentence_iterator(snippets))
         sizes = np.array([len(snip) for snip in snippets])
-        cost = np.array([self.costfn(s) for s in sentence_iterator(snippets)])
+        # cost = np.array([self.costfn(s) for s in sentence_iterator(snippets)])
+        cost = np.array([[self.costfn(si) for si in s] for s in snippets])
 
         sample.test.snippets=snippet_bow
         sample.test.sizes=sizes
@@ -236,9 +237,6 @@ class Experiment(object):
             cost += pool.snippet_cost[di][si]
         return current_cost + cost
 
-    def query_size(self, query):
-        pass
-
     def evaluate(self, learner, test):
         prediction = learner.predict(test.bow)
         pred_proba = learner.predict_proba(test.bow)
@@ -246,11 +244,12 @@ class Experiment(object):
         auc = metrics.roc_auc_score(test.target, pred_proba[:, 1])
         return {'auc': auc, 'accuracy': accu}
 
-    def evaluate_oracle(self, query, predictions, labels=None):
+    def evaluate_oracle(self, true_labels, predictions, labels=None):
         cm = np.zeros((2,2))
+
         try:
-            t = np.array([[x,y] for x,y in zip(query.target, predictions) if y is not None])
-            if len(t)> 0:
+            t = np.array([[x,y] for x, y in zip(true_labels, predictions) if y is not None])
+            if len(t) > 0:
                 cm = metrics.confusion_matrix(t[:,0], t[:,1], labels=labels)
         except AttributeError:
             pass
@@ -276,20 +275,18 @@ class Experiment(object):
 
     def update_pool(self, pool, query, labels, train):
         for q, l in zip(query, labels):
-            pool.remaining.remove(q)
+            pool.remaining.remove(q[0])
             if l is not None:
-                train.index.append(q)
+                train.index.append(q[0])
                 train.target.append(l)
 
         return pool, train
 
     def retrain(self, learner, pool, train):
-        X = pool.bow[train.index]
-        y = train.target
-        ## get training document text
-        text = pool.data[train.index]
 
-        return learner.fit(X, y, doc_text=text)
+        # return learner.fit(X, y, train_index=train.index)
+
+        return learner.fit(pool, train_index=train.index)
 
 
     def get_query(self, data, query):
@@ -325,7 +322,8 @@ class Experiment(object):
         train = bunch.Bunch(index=[], target=[])
         query = []
         labels = []
-
+        query_true_labels = []
+        classes = np.unique(pool.target)
         while current_cost <= budget and iteration <= self.max_iteration and len(pool.remaining) > self.step:
             if iteration == 0:
                 # bootstrap
@@ -334,8 +332,9 @@ class Experiment(object):
                 learner = self.retrain(learner, pool, train)
             else:
                 # select query and query labels
-                query = learner.next(pool, self.step)
-                labels = expert.label(self.get_query(pool,query), y=[pool.target[di] for di, _ in query])
+                query_true_labels = pool.target[[di for di, _ in query]]
+                query = learner.next_query(pool, self.step)
+                labels = expert.label(self.get_query(pool,query), y=query_true_labels)
 
                 # update pool and cost
                 pool, train = self.update_pool(pool, query, labels, train)
@@ -347,13 +346,11 @@ class Experiment(object):
                 if self.debug:
                     self._debug(learner, expert, query)
 
-                query_size = self.query_size(query)
-
             # evaluate student
             step_results = self.evaluate(learner, test)
 
             # evalutate oracle
-            step_oracle = self.evaluate_oracle(query, labels, labels=[0,1])
+            step_oracle = self.evaluate_oracle(query_true_labels, labels, labels=classes)
 
             # record results
             results = self.update_run_results(results, step_results, step_oracle, current_cost)
@@ -434,14 +431,17 @@ class Experiment(object):
         cost = []
         for tr in results:
             c, p, s, n = self._get_iteration(tr['accuracy'])
-            c, p = self._extrapolate(p,c,self.cost_model[self.cost_base],self.trials)
+            # c, p = self._extrapolate(p,c,self.cost_model[self.cost_base],self.trials)
+            c, p = self._extrapolate(p,c,self.costfn(self.cost_base),self.trials)
             accu.append(p)
             cost.append(c)
             c, p, s, n = self._get_iteration(tr['auc'])
-            c, p = self._extrapolate(p,c,self.cost_model[self.cost_base],self.trials)
+            # c, p = self._extrapolate(p,c,self.cost_model[self.cost_base],self.trials)
+            c, p = self._extrapolate(p,c,self.costfn(self.cost_base),self.trials)
             auc.append(p)
             c, p, s, n = self._get_cm_iteration(tr['ora_accu'])
-            c, p = self._extrapolate(p,c,self.cost_model[self.cost_base],self.trials)
+            # c, p = self._extrapolate(p,c,self.cost_model[self.cost_base],self.trials)
+            c, p = self._extrapolate(p,c,self.costfn(self.cost_base),self.trials)
             ora.append(p)
         min_x = min([len(m) for m in cost])
 
@@ -457,11 +457,5 @@ class Experiment(object):
         exputil.print_cm_file(c, p, s, open(output_name + "-oracle-cm.txt", "w"))
 
     def _debug(self, learner, expert, query):
-        st_prob = learner.snippet_model.predict_proba(query.bow)
-        ex_prob = expert.oracle.predict_proba(query.bow)
-
-        for i in range(len(query.index)):
-            print "{}\t{}\t{}\t{}\t{}\t{}\t{}".format(query.index[i], query.target[i], st_prob[i][0], st_prob[i][1],
-                                                      ex_prob[i][0], ex_prob[i][1], query.snippet[i].encode('utf-8'))
-            # print
+        print "\t".join("di:{} - si:{}".format(*q) for q in query)
 

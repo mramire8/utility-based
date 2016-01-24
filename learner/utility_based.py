@@ -1,5 +1,5 @@
 from strategy import Joint
-
+import numpy as np
 
 class UtilityBasedLearner(Joint):
     """StructuredLearner is the Structured reading implementation """
@@ -7,14 +7,13 @@ class UtilityBasedLearner(Joint):
         super(UtilityBasedLearner, self).__init__(model, snippet_fn=snippet_fn, utility_fn=utility_fn, seed=seed)
         self.loss_fn = self.loss_conditional_error
 
-
     def set_utility(self, util):
         self.set_loss_function(util)
 
     def set_loss_function(self, loss):
         self.loss_fn = getattr(self, loss)
 
-
-    def loss_conditional_error(self, clf, data):
+    def loss_conditional_error(self, clf, data, target):
         probs = clf.predict_proba(data)
-        return 1 - probs.max(axis=1)
+        loss = np.array([1 - probs[i][j] for i,j in enumerate(target)])
+        return loss.mean()

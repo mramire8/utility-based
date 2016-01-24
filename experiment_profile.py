@@ -18,10 +18,6 @@ ap.add_argument('--debug',
                 action='store_true',
                 help='to print query details of experiment')
 
-ap.add_argument('--profile',
-                action='store_true',
-                help='to profile code execution')
-
 ap.add_argument('--config',
                 metavar='CONFIG_FILE',
                 type=str,
@@ -29,14 +25,24 @@ ap.add_argument('--config',
                 help='Experiment configuration file')
 
 
-def main():
-    from time import time
-    t0 = time()
-    args = ap.parse_args()
+args = ap.parse_args()
+config = cfgutils.get_config(args.config)
 
-    config = cfgutils.get_config(args.config)
+
+def profile_experiment():
     experiment = Experiment(config, verbose=args.verbose, debug=args.debug)
     experiment.start()
+
+
+def main():
+    from time import time
+    import cProfile
+    t0 = time()
+
+
+    print "=" * 80
+    print "RUNNING - UTILITY BASED"
+    cProfile.run('profile_experiment()')
     t1 = time()
     print "\nElapsed time: %.3f secs (%.3f mins)" % ((t1-t0), (t1-t0)/60)
 

@@ -6,7 +6,7 @@ class Learner(object):
         self.model = model
         self.seed = seed
     
-    def next(self, pool, step):
+    def next_query(self, pool, step):
         raise Exception("Undefined next function")
 
     def fit(self, X, y):
