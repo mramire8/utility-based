@@ -208,8 +208,8 @@ class Experiment(object):
     def get_name(self):
         cfg = cfgutil.get_section_options(self.config, 'learner')
         post = cfgutil.get_section_option(self.config, 'experiment', 'fileprefix')
-        name = "data-{}-lrn-{}-ut-{}-snip-{}-{}".format(self.dataname, cfg['type'], cfg['loss_function'],
-                                                              cfg['snippet'],  post)
+        name = "data-{}-lrn-{}-ut-{}-{}".format(self.dataname, cfg['type'], cfg['loss_function'],
+                                                               post)
         return name
 
     def bootstrap(self, pool, bt, train, bt_method=None):
@@ -262,23 +262,31 @@ class Experiment(object):
             results['ora_accu'][iteration].append(oracle)
         except Exception:
             pass
-
+        oracle_text = ""
         if self.verbose:
             if iteration == 0:
                 print "\nIT\tACCU\tAUC\tT0\tF1\tF0\tT1"
             print "{0:0.2f}\t{1:.3f}\t{2:.3f}\t".format(iteration, step['accuracy'], step['auc']),
             try:
                 print "\t".join(["{0:.3f}".format(x) for x in np.reshape(oracle, 4)])
+                oracle_text = "\t".join(["{0:.3f}".format(x) for x in np.reshape(oracle, 4)])
             except Exception:
+                oracle_text = ""
                 pass
+
+        with open(self.get_name() + "-accu-all.txt", "a") as f:
+            if iteration == 0:
+               f.write("IT\tACCU\tAUC\tT0\tF1\tF0\tT1\n")
+            to_print = "{0:0.2f}\t{1:.3f}\t{2:.3f}\t{3}\n".format(iteration, step['accuracy'], step['auc'],oracle_text)
+            f.write(to_print)
+
         return results
 
     def update_pool(self, pool, query, labels, train):
         for q, l in zip(query, labels):
             pool.remaining.remove(q[0])
-            if l is not None:
-                train.index.append(q[0])
-                train.target.append(l)
+            train.index.append(q[0])
+            train.target.append(l)
 
         return pool, train
 
@@ -286,7 +294,7 @@ class Experiment(object):
 
         # return learner.fit(X, y, train_index=train.index)
 
-        return learner.fit(pool, train_index=train.index)
+        return learner.fit(pool, train=train)
 
 
     def get_query(self, data, query):
@@ -334,8 +342,10 @@ class Experiment(object):
                 # select query and query labels
                 query_true_labels = pool.target[[di for di, _ in query]]
                 query = learner.next_query(pool, self.step)
+
                 labels = expert.label(self.get_query(pool,query), y=query_true_labels)
 
+                print labels
                 # update pool and cost
                 pool, train = self.update_pool(pool, query, labels, train)
                 current_cost = self.update_cost(current_cost, pool, query)

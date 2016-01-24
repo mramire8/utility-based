@@ -1,5 +1,7 @@
 __author__ = 'mramire8'
 
+import numpy as np
+
 
 def unit_cost(query, cost_model=None):
     n = 1
@@ -9,22 +11,25 @@ def unit_cost(query, cost_model=None):
         n = len(query)
     return [1.] * n
 
+
 def word_cost(query, cost_model=None):
     c = 0
     if isinstance(query, int):
         return query
 
-    if isinstance(query, dict):
-        x_text = query.snippet
-    else:
-        x_text = query
-    if isinstance(x_text, unicode):
+    x_text = query
+    if isinstance(x_text, basestring):
         c = len(x_text.split())
-    elif isinstance(x_text, list):
+    elif isinstance(x_text, list) or isinstance(x_text, np.array):
         if x_text is not None:
             c = [len(x.split()) for x in x_text]
 
     return c
+
+
+def log_word_cost(query, cost_model=None):
+    return np.log2(1+word_cost(query, cost_model=cost_model))
+
 
 def intra_cost(query, cost_model=None):
     if cost_model is None:
@@ -46,18 +51,18 @@ def intra_cost(query, cost_model=None):
 def _cost_intrapolated(x, cost, kvalues):
     import numpy as np
 
-    binx = min(np.digitize([x], kvalues)[0], len(cost)-1)
-    lbbinx = max(binx-1, 0)
+    binx = min(np.digitize([x], kvalues)[0], len(cost) - 1)
+    lbbinx = max(binx - 1, 0)
 
-    y1 = cost[lbbinx] if lbbinx>=0  else 0
+    y1 = cost[lbbinx] if lbbinx >= 0  else 0
     y2 = cost[binx]
-    x1 = kvalues[lbbinx] if lbbinx >=0 else 0
+    x1 = kvalues[lbbinx] if lbbinx >= 0 else 0
     x2 = kvalues[binx]
 
-    if (x2-x1) == 0:
+    if (x2 - x1) == 0:
         return cost[0]
 
-    m = (y2-y1) / (x2-x1)
+    m = (y2 - y1) / (x2 - x1)
     b = y2 - m * x2
 
     if x < kvalues[0]:

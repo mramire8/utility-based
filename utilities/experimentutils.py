@@ -148,20 +148,6 @@ def get_tokenizer(tk_name, **kwargs):
             k = kwargs['snip_size']
         sent_detector = SnippetTokenizer(k=k)
         return sent_detector
-    elif tk_name == 'first1snippet':
-        from snippet_tokenizer import First1SnippetTokenizer
-        k = (1,1)
-        if 'snip_size' in kwargs:
-            k = kwargs['snip_size']
-        sent_detector = First1SnippetTokenizer(k=k)
-        return sent_detector
-    elif tk_name == 'random1snippet':
-        from snippet_tokenizer import Random1SnippetTokenizer
-        k = (1,1)
-        if 'snip_size' in kwargs:
-            k = kwargs['snip_size']
-        sent_detector = Random1SnippetTokenizer(k=k)
-        return sent_detector
     elif tk_name == 'windowsnippet':
         from snippet_tokenizer import WindowSnippetTokenizer
         k = (1,1)
@@ -181,29 +167,18 @@ def get_tokenizer(tk_name, **kwargs):
 
 
 def get_costfn(fn_name):
-    # from costutils import intra_cost, unit_cost
-    # if fn_name == 'unit':
-    #     return unit_cost
-    # elif fn_name == 'variable_cost':
-    #     return intra_cost
-    # else:
-    #     raise Exception("Unknown cost function")
     import costutils
     return getattr(costutils, fn_name)
 
-# def unit_cost(X):
-#     return X.shape[0]
-
 
 def print_file(cost, mean, std, f):
-    # f = open(file_name, "w")
     f.write("COST\tMEAN\tSTDEV\n")
     for a, b, c in zip(cost, mean, std):
         f.write("{0:.3f}\t{1:.3f}\t{2:.3f}\n".format(a, b, c))
     f.close()
 
+
 def print_cm_file(cost, mean, std, f):
-    # f = open(file_name, "w")
     f.write("COST\tT0\tF1\tF0\tT1\tSTDEV\n")
     for a, b, c in zip(cost, mean, std):
         f.write("{0:.3f}\t{1:.3f}\t{2:.3f}\t{3:.3f}\t{4:.3f}\n".format(a, *b))

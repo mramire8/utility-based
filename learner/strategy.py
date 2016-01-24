@@ -4,6 +4,7 @@ from sklearn.datasets import base as bunch
 from scipy.sparse import vstack
 from copy import copy
 
+
 class RandomSampling(Learner):
     """docstring for RandomSampling"""
 
@@ -46,6 +47,7 @@ class BootstrapFromEach(Learner):
 
         return chosen
 
+
 class ActiveLearner(Learner):
     """ActiveLearner class that defines a simple utility based pool sampling strategy"""
 
@@ -60,6 +62,7 @@ class ActiveLearner(Learner):
 
 class StructuredLearner(ActiveLearner):
     """StructuredLearner is the Structured reading implementation """
+
     def __init__(self, model, snippet_fn=None, utility_fn=None, seed=1):
         super(StructuredLearner, self).__init__(model, seed=seed)
         import copy
@@ -83,10 +86,10 @@ class StructuredLearner(ActiveLearner):
     def get_name(self):
         return "{}{}".format(self.utility.__name__, self.snippet_utility.__name__)
 
-    def fit(self, data, train_index=None):
+    def fit(self, data, train=None):
         # fit student
-        X = data.bow[train_index]
-        y = data.target[train_index]
+        X = data.bow[train.index]  # vector representation
+        y = train.target ## labels from the oracle
         self.model.fit(X, y)
 
         return self
@@ -111,29 +114,27 @@ class StructuredLearner(ActiveLearner):
     def _snippet_rnd(self, X):
         return self.sent_rnd.random_sample(X.shape[0])
 
-
     def _get_snippets(self, data, candidates):
         ranges = np.cumsum(data.sizes)
-    #     print 0 if i==0 else ranges[i-1],ranges[i]
+        #     print 0 if i==0 else ranges[i-1],ranges[i]
         snips = []
         for i in candidates:
-            snips.append(data.snippets[0 if i==0 else ranges[i-1]:ranges[i]])
+            snips.append(data.snippets[0 if i == 0 else ranges[i - 1]:ranges[i]])
         return snips
 
     def _get_probs_per_snippet(self, data, candidates):
         ranges = np.cumsum(data.sizes)
-    #     print 0 if i==0 else ranges[i-1],ranges[i]
+        #     print 0 if i==0 else ranges[i-1],ranges[i]
         snips = []
         for i in candidates:
-            snips.append(data.snippets[0 if i==0 else ranges[i-1]:ranges[i]])
+            snips.append(data.snippets[0 if i == 0 else ranges[i - 1]:ranges[i]])
         return snips
-
 
     def _compute_snippet(self, pool):
 
         """select the snippet with the best score for each document"""
 
-        x_sent_bow, x_sent, x_len = self._get_snippets(pool) # a matrix of all snippets (stacked), and the size
+        x_sent_bow, x_sent, x_len = self._get_snippets(pool)  # a matrix of all snippets (stacked), and the size
 
         snip_prob = self.snippet_model.predict_proba(x_sent_bow)
 
@@ -148,27 +149,27 @@ class StructuredLearner(ActiveLearner):
 class Joint(StructuredLearner):
     """docstring for Joint"""
 
-    def __init__(self, model, snippet_fn=None, utility_fn=None, minimax=-1,  seed=1):
+    def __init__(self, model, snippet_fn=None, utility_fn=None, minimax=-1, seed=1):
         super(Joint, self).__init__(model, snippet_fn=snippet_fn, utility_fn=utility_fn, seed=seed)
         self.current_training = []
         self.current_training_labels = []
         self.minimax = minimax
-        self.validation_index=[]
+        self.validation_index = []
         self.loss_fn = None
 
     def set_minimax(self, minimax):
-        if minimax =='maximize':
+        if minimax == 'maximize':
             self.minimax = -1
         else:
             self.minimax = 1
-    
+
     def _subsample_pool(self, rem):
         subpool = list(rem)
         self.rnd_state.shuffle(subpool)
         subpool = subpool[:250]
 
         return subpool
-    
+
     def next_query(self, pool, step):
 
         """
@@ -179,25 +180,25 @@ class Joint(StructuredLearner):
         """
         subpool = self._subsample_pool(pool.remaining)
 
-        util = self.expected_utility(pool, subpool) # util list of (utility_score, snipet index of max)
+        util = self.expected_utility(pool, subpool)  # util list of (utility_score, snipet index of max)
 
-        if self.minimax > 0: ## minimizing
+        if self.minimax > 0:  ## minimizing
             max_util = [np.argmin(p) for p in util]  # snippet per document with max/min utility
         else:
             max_util = [np.argmax(p) for p in util]  # snippet per document with max/min utility
 
-        order = np.argsort([util[i][u] for i,u in enumerate(max_util)])[::self.minimax]  # document with snippet utlity max/min
+        order = np.argsort([util[i][u] for i, u in enumerate(max_util)])[
+                ::self.minimax]  # document with snippet utlity max/min
 
         index = [(subpool[i], max_util[i]) for i in order[:step]]
 
         return index
 
-
     def expected_utility(self, data, candidates):
         labels = self.model.classes_
         tra_y = copy(self.current_training_labels)
         tra_x = copy(self.current_training)
-        clf  = copy(self.model)
+        clf = copy(self.model)
         utilities = []  # two per document
         for i, x_i in enumerate(candidates):
             tra_x.append(x_i)
@@ -217,16 +218,16 @@ class Joint(StructuredLearner):
             tra_x = tra_x[:-1]
 
         snippets = self._get_snippets(data, candidates)
-        probs = [self.snippet_model.predict_proba(snip) for snip in snippets] # one per snippet
+        probs = [self.snippet_model.predict_proba(snip) for snip in snippets]  # one per snippet
         cost = data.snippet_cost[candidates]
         exp_util = []
 
-        for ut, pr, co in zip(utilities, probs, cost): # for every document
+        for ut, pr, co in zip(utilities, probs, cost):  # for every document
             exp = []
-            for p,c in zip(pr,co): # for every snippet in the document
+            for p, c in zip(pr, co):  # for every snippet in the document
                 exp.append((p[0] * ut[0][2] + p[1] * ut[1][2]) / c)  ## utility over cost
 
-            exp_util.extend([exp]) # one per snippet
+            exp_util.extend([exp])  # one per snippet
 
         return exp_util
 
@@ -236,7 +237,7 @@ class Joint(StructuredLearner):
 
         return loss
 
-    def fit(self, data, train_index=[]):
+    def fit(self, data, train=[]):
 
         """
         fit an active learning strategy
@@ -245,18 +246,19 @@ class Joint(StructuredLearner):
         :param snippets:
         :return:
         """
-        X = data.bow[train_index]
-        y = data.target[train_index]
+        non_neutral = np.array(train.target) < 2
+        selected = np.array(train.index)[non_neutral]
+        x = data.bow[selected]
+        y = np.array(train.target)[non_neutral]
+        self.model.fit(x, y)
 
-        super(Joint, self).fit(data, train_index=train_index)
-        self.current_training.extend(train_index)
-        self.current_training_labels.extend(y)
+        self.current_training = [i for i,n in zip(train.index, non_neutral) if n]
+        self.current_training_labels = y.tolist()
 
-        snippets = self._get_snippets(data, train_index)
+        snippets = self._get_snippets(data, train.index)
         labels = []
-        for l,s in zip(y, data.sizes[train_index]):
+        for l, s in zip(np.array(train.target), data.sizes[train.index]):
             labels.extend([l] * s)
         self.snippet_model.fit(vstack(snippets), labels)
 
         return self
-

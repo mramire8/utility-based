@@ -67,6 +67,7 @@ class ReluctantDocumentExpert(PredictingExpert):
         super(ReluctantDocumentExpert, self).__init__(oracle)
         self.reluctant_threhold = reluctant_threshold
         self.rnd = np.random.RandomState(seed)
+        self.neutral_value = 2
 
     def fit(self, X_text, y=None, vct=None):
         sx = vct.transform(X_text)
@@ -74,7 +75,7 @@ class ReluctantDocumentExpert(PredictingExpert):
         return self
 
     def label(self, data, y=None):
-        prediction = np.array([None] * data.shape[0], dtype=object)
+        prediction = np.array([self.neutral_value] * data.shape[0], dtype=object)
         proba = self.oracle.predict_proba(data)
         pred = self.oracle.predict(data)
         unc = proba.min(axis=1)
@@ -89,6 +90,7 @@ class PerfectReluctantDocumentExpert(PredictingExpert):
         super(PerfectReluctantDocumentExpert, self).__init__(oracle)
         self.reluctant_threhold = reluctant_threshold
         self.rnd = np.random.RandomState(seed)
+        self.neutral_value = 2
 
     def fit(self, X_text, y=None, vct=None):
         sx = vct.transform(X_text)
@@ -99,7 +101,7 @@ class PerfectReluctantDocumentExpert(PredictingExpert):
         data = query
         if isinstance(query, dict):
             data = query.bow
-        prediction = np.array([None] * data.shape[0], dtype=object)
+        prediction = np.array([self.neutral_value] * data.shape[0], dtype=object)
         proba = self.oracle.predict_proba(data)
         unc = 1. - proba.max(axis=1)
         prediction[unc < self.reluctant_threhold] = y[unc < self.reluctant_threhold]
@@ -113,6 +115,7 @@ class TrueReluctantExpert(TrueExpert):
         super(TrueReluctantExpert, self).__init__(oracle)
         self.rnd = np.random.RandomState(seed)
         self.reluctant_p = reluctant_p
+        self.neutral_value = 2
 
     def label(self, data, y=None):
 
@@ -120,6 +123,6 @@ class TrueReluctantExpert(TrueExpert):
 
         coin = self.rnd.random_sample(len(y))  # flip a coin for neutral probability
 
-        prediction[coin < self.reluctant_p] = None  ## if coin is < p then is neutral
+        prediction[coin < self.reluctant_p] = self.neutral_value  ## if coin is < p then is neutral
 
         return prediction
