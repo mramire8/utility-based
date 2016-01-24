@@ -167,6 +167,9 @@ class Experiment(object):
             args.update({'snip_size':config['snip_size']})
         self.sent_tokenizer = exputil.get_tokenizer(config['sent_tokenizer'], **args)
 
+        if not os.path.exists(self.output):
+            os.makedirs(self.output)
+
     def print_lap(self, msg, t0):
         t1 = time()
         print "%s %.3f secs (%.3f mins)" % (msg, (t1-t0), (t1-t0)/60)
@@ -256,6 +259,7 @@ class Experiment(object):
         return cm
 
     def update_run_results(self, results, step, oracle, iteration):
+
         results['accuracy'][iteration].append(step['accuracy'])
         results['auc'][iteration].append(step['auc'])
         try:
