@@ -277,8 +277,8 @@ class Experiment(object):
             except Exception:
                 oracle_text = ""
                 pass
-
-        with open(self.get_name() + "-accu-all.txt", "a") as f:
+        output_name = self.output + "/" + self.get_name()  + "-accu-all.txt"
+        with open(output_name, "a") as f:
             if iteration == 0:
                f.write("IT\tACCU\tAUC\tT0\tF1\tF0\tT1\n")
             to_print = "{0:0.2f}\t{1:.3f}\t{2:.3f}\t{3}\n".format(iteration, step['accuracy'], step['auc'],oracle_text)
