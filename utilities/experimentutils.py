@@ -104,7 +104,7 @@ def get_learner(learn_config, vct=None, sent_tk=None, seed=None, cost_model=None
 
 def get_expert(config, size=None):
 
-    from expert.experts import PredictingExpert, \
+    from expert.experts import PredictingExpert, PerfectReluctantDocumentExpert,\
         TrueExpert, NoisyExpert, TrueReluctantExpert
 
     cl_name = config['model']
@@ -120,6 +120,9 @@ def get_expert(config, size=None):
     elif config['type'] == 'truereluctant':  # reluctant based on p probability
         p = config['neutral_p']
         expert = TrueReluctantExpert(None, p)
+    elif config['type'] == 'perfectreluctant': # reluctant based on unc threshold
+        p = config['threshold']
+        expert = PerfectReluctantDocumentExpert(clf, p)
     else:
         raise Exception("We don't know {} expert".format(config['type']))
 

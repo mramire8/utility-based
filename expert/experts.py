@@ -92,17 +92,23 @@ class PerfectReluctantDocumentExpert(PredictingExpert):
         self.rnd = np.random.RandomState(seed)
         self.neutral_value = 2
 
-    def fit(self, X_text, y=None, vct=None):
-        sx = vct.transform(X_text)
-        self.oracle.fit(sx, y)
+    def fit(self, x, y=None, vct=None):
+
+        self.oracle.fit(x, y)
         return self
 
     def label(self, query, y=None):
         data = query
         if isinstance(query, dict):
             data = query.bow
-        prediction = np.array([self.neutral_value] * data.shape[0], dtype=object)
-        proba = self.oracle.predict_proba(data)
+
+        if isinstance(data, list):
+            n = len(data)
+        else:
+            n = data.shape[0]
+
+        prediction = np.array([self.neutral_value] * n)
+        proba = np.array([self.oracle.predict_proba(d)[0] for d in data])
         unc = 1. - proba.max(axis=1)
         prediction[unc < self.reluctant_threhold] = y[unc < self.reluctant_threhold]
 

@@ -193,7 +193,7 @@ class Experiment(object):
 
             expert = exputil.get_expert(cfgutil.get_section_options(self.config, 'expert'), size=len(train.data))
 
-            expert.fit(train.data, y=train.target, vct=self.vct)
+            expert.fit(train.bow, y=train.target, vct=self.vct)
 
             # do active learning
             results = self.main_loop(learner, expert, self.budget, self.bootstrap_size, train, test)
