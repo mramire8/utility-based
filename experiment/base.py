@@ -345,7 +345,6 @@ class Experiment(object):
 
                 labels = expert.label(self.get_query(pool,query), y=query_true_labels)
 
-                print labels
                 # update pool and cost
                 pool, train = self.update_pool(pool, query, labels, train)
                 current_cost = self.update_cost(current_cost, pool, query)
