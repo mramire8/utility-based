@@ -112,7 +112,9 @@ class PerfectReluctantDocumentExpert(PredictingExpert):
         data = vstack(data)
         proba = self.oracle.predict_proba(data)
         unc = 1. - proba.max(axis=1)
-        prediction[unc < self.reluctant_threhold] = y[unc < self.reluctant_threhold]
+
+        if sum(unc < self.reluctant_threhold) > 0:
+            prediction[unc < self.reluctant_threhold] = y[unc < self.reluctant_threhold]
 
         return prediction
 
