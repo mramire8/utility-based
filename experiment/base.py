@@ -14,6 +14,8 @@ import numpy as np
 from collections import defaultdict, deque
 from learner.strategy import BootstrapFromEach
 from sklearn.datasets import base as bunch
+from sklearn.externals.joblib import Parallel, delayed, logger
+from sklearn.base import clone
 from time import time
 
 
@@ -24,6 +26,7 @@ class Experiment(object):
         super(Experiment, self).__init__()
         self.verbose = verbose
         self.debug = debug
+        self.save_all = True
         self.config = config
 
         self.dataname = None
@@ -226,7 +229,6 @@ class Experiment(object):
         train.index = initial
         train.target = pool.target[initial].tolist()
         if bt_method == 'amt-tfe':
-            # train.target = pool.doctarget[initial].tolist()
             train.target = pool.alltarget[initial].tolist()
         else:
             for q in train.index:
@@ -258,31 +260,36 @@ class Experiment(object):
             pass
         return cm
 
-    def update_run_results(self, results, step, oracle, iteration):
+    def update_run_results(self, results, step, oracle, cost, iteration, trial=None):
 
-        results['accuracy'][iteration].append(step['accuracy'])
-        results['auc'][iteration].append(step['auc'])
+        results['accuracy'][cost].append(step['accuracy'])
+        results['auc'][cost].append(step['auc'])
         try:
-            results['ora_accu'][iteration].append(oracle)
+            results['ora_accu'][cost].append(oracle)
         except Exception:
             pass
         oracle_text = ""
         if self.verbose:
             if iteration == 0:
                 print "\nIT\tACCU\tAUC\tT0\tF1\tF0\tT1"
-            print "{0:0.2f}\t{1:.3f}\t{2:.3f}\t".format(iteration, step['accuracy'], step['auc']),
+            print "{0:0.2f}\t{1:.3f}\t{2:.3f}\t".format(cost, step['accuracy'], step['auc']),
             try:
                 print "\t".join(["{0:.3f}".format(x) for x in np.reshape(oracle, 4)])
                 oracle_text = "\t".join(["{0:.3f}".format(x) for x in np.reshape(oracle, 4)])
             except Exception:
                 oracle_text = ""
                 pass
-        output_name = self.output + "/" + self.get_name()  + "-accu-all.txt"
-        with open(output_name, "a") as f:
-            if iteration == 0:
-               f.write("IT\tACCU\tAUC\tT0\tF1\tF0\tT1\n")
-            to_print = "{0:0.2f}\t{1:.3f}\t{2:.3f}\t{3}\n".format(iteration, step['accuracy'], step['auc'],oracle_text)
-            f.write(to_print)
+
+        if self.save_all:
+                if trial is not None:
+                    output_name = self.output + "/" + self.get_name()  + "-accu-all-%s.txt" %(trial)
+                else:
+                    output_name = self.output + "/" + self.get_name()  + "-accu-all.txt"
+                with open(output_name, "a") as f:
+                    if iteration == 0:
+                       f.write("IT\tACCU\tAUC\tT0\tF1\tF0\tT1\n")
+                    to_print = "{0:0.2f}\t{1:.3f}\t{2:.3f}\t{3}\n".format(cost, step['accuracy'], step['auc'],oracle_text)
+                    f.write(to_print)
 
         return results
 
@@ -300,7 +307,6 @@ class Experiment(object):
 
         return learner.fit(pool, train=train)
 
-
     def get_query(self, data, query):
 
         ranges = np.cumsum(data.sizes)
@@ -315,8 +321,6 @@ class Experiment(object):
         n = len(remaining)
         half = int(n * self.split)
         return deque(remaining[:half]), list(remaining[half:])
-
-
 
     def main_loop(self, learner, expert, budget, bootstrap, pool, test):
 
@@ -367,7 +371,7 @@ class Experiment(object):
             step_oracle = self.evaluate_oracle(query_true_labels, labels, labels=classes)
 
             # record results
-            results = self.update_run_results(results, step_results, step_oracle, current_cost)
+            results = self.update_run_results(results, step_results, step_oracle, current_cost, iteration)
 
             iteration += 1
 

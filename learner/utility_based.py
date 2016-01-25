@@ -1,5 +1,7 @@
 from strategy import Joint
 import numpy as np
+from sklearn.metrics import accuracy_score, roc_auc_score
+
 
 class UtilityBasedLearner(Joint):
     """StructuredLearner is the Structured reading implementation """
@@ -17,3 +19,7 @@ class UtilityBasedLearner(Joint):
         probs = clf.predict_proba(data)
         loss = np.array([1 - probs[i][j] for i,j in enumerate(target)])
         return loss.mean()
+
+    def loss_error(self, clf, data, target):
+        preds = clf.predict(data)
+        return accuracy_score(target, preds)

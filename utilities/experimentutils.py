@@ -3,30 +3,44 @@ from learner.strategy import Joint
 import numpy as np
 from nltk import RegexpTokenizer
 from nltk.stem import PorterStemmer
+from sklearn.utils import safe_indexing
 
+
+def get_query(data, sizes, query):
+
+    ranges = np.cumsum(sizes)
+    queries = []
+    for di in query:
+        queries.append(data[0 if di==0 else ranges[di-1]:ranges[di]])
+
+    return queries
 
 
 def sample_data(data, train_idx, test_idx):
-    sample = bunch.Bunch(train=bunch.Bunch(), test=bunch.Bunch())
-    
+    sample = bunch.Bunch(train=bunch.Bunch(), test=bunch.Bunch(), target_names=None)
+
+    # sample.target_names = data.target_names
+
+    sample.train.data = safe_indexing(data.train.data,train_idx)
+    sample.train.target = safe_indexing(data.train.target,train_idx)
+    sample.train.bow = safe_indexing(data.train.bow,train_idx)
+    sample.train.remaining = []
+    sample.train.validation = []
+
+    sample.train.snippets=safe_indexing(data.train.snippets,train_idx)
+    sample.train.sizes=safe_indexing(data.train.sizes,train_idx)
+    sample.train.snippet_cost = safe_indexing(data.train.snippet_cost,train_idx)
+
+
     if len(test_idx) > 0: #if there are test indexes
-        sample.train.data = np.array(data.data, dtype=object)[train_idx]
-        sample.test.data = np.array(data.data, dtype=object)[test_idx]
-        sample.train.target = data.target[train_idx]
-        sample.test.target = data.target[test_idx]
-        sample.train.bow = data.bow[train_idx]
-        sample.test.bow = data.bow[test_idx]
-        sample.target_names = data.target_names
-        sample.train.remaining = []
-    else:
-        ## Just shuffle the data
-        sample = data
-        data_lst = np.array(data.train.data, dtype=object)
-        data_lst = data_lst[train_idx]
-        sample.train.data = data_lst
-        sample.train.target = data.train.target[train_idx]
-        sample.train.bow = data.train.bow[train_idx]
-        sample.train.remaining = []
+        # sample.test.data = safe_indexing(data.train.target,test_idx)
+        sample.test.target = safe_indexing(data.train.target,test_idx)
+        sample.test.bow = safe_indexing(data.train.bow,train_idx)
+        sample.test.snippets=safe_indexing(data.train.snippets,train_idx)
+        sample.test.sizes=safe_indexing(data.train.sizes,train_idx)
+        sample.test.snippet_cost = safe_indexing(data.train.snippet_cost,train_idx)
+
+
     return sample.train, sample.test
 
 def stemming(doc):

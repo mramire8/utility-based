@@ -115,11 +115,16 @@ class StructuredLearner(ActiveLearner):
         return self.sent_rnd.random_sample(X.shape[0])
 
     def _get_snippets(self, data, candidates):
-        ranges = np.cumsum(data.sizes)
-        #     print 0 if i==0 else ranges[i-1],ranges[i]
-        snips = []
-        for i in candidates:
-            snips.append(data.snippets[0 if i == 0 else ranges[i - 1]:ranges[i]])
+
+        if hasattr(data, "shape"):
+            ranges = np.cumsum(data.sizes)
+            #     print 0 if i==0 else ranges[i-1],ranges[i]
+            snips = []
+            for i in candidates:
+                snips.append(data.snippets[0 if i == 0 else ranges[i - 1]:ranges[i]])
+        else:
+            return [data.snippets[idx] for idx in candidates]
+
         return snips
 
     def _get_probs_per_snippet(self, data, candidates):
