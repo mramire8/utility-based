@@ -3,6 +3,8 @@ from base import Learner
 from sklearn.datasets import base as bunch
 from scipy.sparse import vstack
 from copy import copy
+from sklearn.externals.joblib import Parallel, delayed
+from sklearn.base import clone
 
 
 class RandomSampling(Learner):
@@ -116,7 +118,7 @@ class StructuredLearner(ActiveLearner):
 
     def _get_snippets(self, data, candidates):
 
-        if hasattr(data, "shape"):
+        if hasattr(data.snippets, "shape"):
             ranges = np.cumsum(data.sizes)
             #     print 0 if i==0 else ranges[i-1],ranges[i]
             snips = []
@@ -209,6 +211,14 @@ class Joint(StructuredLearner):
             tra_x.append(x_i)
             uts = []
 
+            # parallel = Parallel(n_jobs=2, verbose=True,
+            #                     pre_dispatch=4)
+            # scores = parallel(delayed(self.evaluation_on_validation_label, check_pickle=False)( lbl,
+            #                                 data.bow, tra_x, tra_y, data.validation,data.target[data.validation],i)
+            #                  for lbl in labels)
+            #
+            # uts = sorted(scores, key=lambda x: x[1])
+
             for lbl in labels:
                 tra_y.append(lbl)
                 clf.fit(data.bow[tra_x], tra_y)
@@ -235,6 +245,14 @@ class Joint(StructuredLearner):
             exp_util.extend([exp])  # one per snippet
 
         return exp_util
+
+    def evaluation_on_validation_label(self, lbl, databow, tra_x, tra_y, val_train, val_target, i):
+        x = tra_x
+        y = tra_y.append(lbl)
+        clf = copy(self.model)
+        clf.fit(databow[x], y)
+        res = self.evaluation_on_validation(clf, databow[val_train], val_target)
+        return (i, lbl, res)
 
     def evaluation_on_validation(self, clf, data, target):
 

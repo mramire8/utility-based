@@ -95,8 +95,8 @@ class ExperimentJobs(Experiment):
         parallel = Parallel(n_jobs=n_jobs, verbose=True,
                             pre_dispatch=pre_dispatch)
         scores = parallel(delayed(self.main_loop_jobs,check_pickle=False)(lrnr, expert, self.budget, self.bootstrap_size,
-                                                  self.data, indices[0], indices[1])
-                          for indices, lrnr in zip(cv, learners))
+                                                  self.data, train,test)
+                         for lrnr in learners for train, test in cv)
         # return np.array(scores)[:, 0]
 
         self.print_lap("\nDone trials", t0)
