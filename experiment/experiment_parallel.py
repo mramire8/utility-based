@@ -43,7 +43,7 @@ class ExperimentJobs(Experiment):
         cost = np.array([[self.costfn(si) for si in s] for s in snippets])
 
         ranges = np.cumsum(sizes)
-        data.train.snippets = [snippet_bow[0 if i == 0 else ranges[i]:ranges[i]] for i in range(len(snippets))]
+        data.train.snippets = [snippet_bow[0 if i == 0 else ranges[i-1]:ranges[i]] for i in range(len(sizes))]
         data.train.sizes= sizes
         data.train.snippet_cost = cost
 
@@ -54,7 +54,7 @@ class ExperimentJobs(Experiment):
         cost = np.array([[self.costfn(si) for si in s] for s in snippets])
 
         ranges = np.cumsum(sizes)
-        data.test.snippets = [snippet_bow[0 if i == 0 else ranges[i]:ranges[i]] for i in range(len(snippets))]
+        data.test.snippets = [snippet_bow[0 if i == 0 else ranges[i-1]:ranges[i]] for i in range(len(sizes))]
         data.test.sizes= sizes
         data.test.snippet_cost = cost
 
