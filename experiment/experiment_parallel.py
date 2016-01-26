@@ -94,9 +94,9 @@ class ExperimentJobs(Experiment):
 
         parallel = Parallel(n_jobs=n_jobs, verbose=True,
                             pre_dispatch=pre_dispatch)
-        scores = parallel(delayed(self.main_loop_jobs,check_pickle=False)(lrnr, expert, self.budget, self.bootstrap_size,
+        scores = parallel(delayed(self.main_loop_jobs,check_pickle=False)(learners[t], expert, self.budget, self.bootstrap_size,
                                                   self.data, tr[0],tr[1], t)
-                         for lrnr in learners for t, tr in enumerate(cv))
+                         for t, tr in enumerate(cv))
         # return np.array(scores)[:, 0]
 
         self.print_lap("\nDone trials", t0)
