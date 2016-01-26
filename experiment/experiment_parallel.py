@@ -95,8 +95,8 @@ class ExperimentJobs(Experiment):
         parallel = Parallel(n_jobs=n_jobs, verbose=True,
                             pre_dispatch=pre_dispatch)
         scores = parallel(delayed(self.main_loop_jobs,check_pickle=False)(lrnr, expert, self.budget, self.bootstrap_size,
-                                                  self.data, train,test)
-                         for lrnr in learners for train, test in cv)
+                                                  self.data, tr[0],tr[1], t)
+                         for lrnr in learners for t, tr in enumerate(cv))
         # return np.array(scores)[:, 0]
 
         self.print_lap("\nDone trials", t0)
@@ -119,7 +119,7 @@ class ExperimentJobs(Experiment):
 
         return pool, test
 
-    def main_loop_jobs(self, learner, expert, budget, bootstrap, data, train_idx, test_idx):
+    def main_loop_jobs(self, learner, expert, budget, bootstrap, data, train_idx, test_idx, t):
 
         iteration = 0
         current_cost = 0
@@ -166,7 +166,7 @@ class ExperimentJobs(Experiment):
             step_oracle = self.evaluate_oracle(query_true_labels, labels, labels=classes)
 
             # record results
-            results = self.update_run_results(results, step_results, step_oracle, current_cost, trial=(seed-10)/10)
+            results = self.update_run_results(results, step_results, step_oracle, current_cost, trial=t)
 
             iteration += 1
 

@@ -40,6 +40,8 @@ def sample_data(data, train_idx, test_idx):
         sample.test.sizes=safe_indexing(data.train.sizes,train_idx)
         sample.test.snippet_cost = safe_indexing(data.train.snippet_cost,train_idx)
 
+    else:
+        sample.test = data.test
 
     return sample.train, sample.test
 
