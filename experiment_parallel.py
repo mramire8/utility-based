@@ -1,6 +1,6 @@
 import argparse
 import utilities.configutils as cfgutils
-from experiment.base import Experiment
+from experiment.experiment_parallel import ExperimentJobs
 
 ap = argparse.ArgumentParser(description=__doc__,
                              formatter_class=argparse.RawTextHelpFormatter)
@@ -35,7 +35,7 @@ def main():
     args = ap.parse_args()
 
     config = cfgutils.get_config(args.config)
-    experiment = Experiment(config, verbose=args.verbose, debug=args.debug)
+    experiment = ExperimentJobs(config, verbose=args.verbose, debug=args.debug)
     experiment.start()
     t1 = time()
     print "\nElapsed time: %.3f secs (%.3f mins)" % ((t1-t0), (t1-t0)/60)
