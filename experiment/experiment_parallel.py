@@ -166,7 +166,7 @@ class ExperimentJobs(Experiment):
             step_oracle = self.evaluate_oracle(query_true_labels, labels, labels=classes)
 
             # record results
-            results = self.update_run_results(results, step_results, step_oracle, current_cost, trial=t)
+            results = self.update_run_results(results, step_results, step_oracle, current_cost,iteration, trial=t)
 
             iteration += 1
 

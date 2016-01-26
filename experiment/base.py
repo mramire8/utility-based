@@ -17,7 +17,7 @@ from sklearn.datasets import base as bunch
 from sklearn.externals.joblib import Parallel, delayed, logger
 from sklearn.base import clone
 from time import time
-
+from sklearn.utils import safe_indexing
 
 class Experiment(object):
     """Main experiment class to run according to configuration"""
@@ -309,10 +309,14 @@ class Experiment(object):
 
     def get_query(self, data, query):
 
-        ranges = np.cumsum(data.sizes)
-        queries = []
-        for di, si in query:
-            queries.append(data.snippets[0 if di==0 else ranges[di-1]:ranges[di]][si])
+        if hasattr(data.snippets, "shape"):
+            ranges = np.cumsum(data.sizes)
+            queries = []
+            for di, si in query:
+                queries.append(data.snippets[0 if di==0 else ranges[di-1]:ranges[di]][si])
+        else:
+
+            queries = [data.snippets[d][np.ix_([s])] for d,s in query]
 
         return queries
 
