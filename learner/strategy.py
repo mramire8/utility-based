@@ -210,22 +210,30 @@ class Joint(StructuredLearner):
         for i, x_i in enumerate(candidates):
             tra_x.append(x_i)
             uts = []
+            #==========================================
+            # parallel
+            #==========================================
+            parallel = Parallel(n_jobs=2, verbose=True)
+            scores = parallel(delayed(self.evaluation_on_validation_label, check_pickle=False)(lbl,
+                                            data.bow, tra_x, tra_y, data.validation,data.target[data.validation],i)
+                             for lbl in labels)
 
-            # parallel = Parallel(n_jobs=2, verbose=True,
-            #                     pre_dispatch=4)
-            # scores = parallel(delayed(self.evaluation_on_validation_label, check_pickle=False)( lbl,
-            #                                 data.bow, tra_x, tra_y, data.validation,data.target[data.validation],i)
-            #                  for lbl in labels)
-            #
-            # uts = sorted(scores, key=lambda x: x[1])
+            uts = sorted(scores, key=lambda x: x[1])
+            #==========================================
 
-            for lbl in labels:
-                tra_y.append(lbl)
-                clf.fit(data.bow[tra_x], tra_y)
-                u = self.evaluation_on_validation(clf, data.bow[data.validation], data.target[data.validation])
-                uts.append((i, lbl, u))
-                # undo labels
-                tra_y = tra_y[:-1]
+            #==========================================
+            # regular - serial computation
+            #==========================================
+            # uts = [self.evaluation_on_validation_label(lbl,data.bow, tra_x, tra_y, data.validation,
+            #                                            data.target[data.validation],i) for lbl in labels]
+            # for lbl in labels:
+            #     tra_y.append(lbl)
+            #     clf.fit(data.bow[tra_x], tra_y)
+            #     u = self.evaluation_on_validation(clf, data.bow[data.validation], data.target[data.validation])
+            #     uts.append((i, lbl, u))
+            #     # undo labels
+            #     tra_y = tra_y[:-1]
+            #==========================================
 
             utilities.append(uts)
 
