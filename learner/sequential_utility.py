@@ -6,6 +6,7 @@ from sklearn.base import clone
 
 from .joint_utility import Joint
 
+
 class Sequential(Joint):
     """docstring for Joint"""
 
@@ -16,16 +17,7 @@ class Sequential(Joint):
         self.minimax = minimax
         self.validation_index = []
         self.loss_fn = None
-        self.sample_step = 1
         self.utility_base = self._utility_validation
-
-    def _subsample_pool(self, rem):
-        subpool = list(rem)
-        self.rnd_state.shuffle(subpool)
-        subpool = subpool[:self.sample_step]
-
-        return subpool
-
 
     def next_query(self, pool, step):
 
@@ -35,7 +27,7 @@ class Sequential(Joint):
         :param step:
         :return:
         """
-        self.sample_step = step
+        self.subsample = step
         subpool = self._subsample_pool(pool.remaining)
 
         util = self.expected_utility(pool, subpool)  # util list of (utility_score, snipet index of max)

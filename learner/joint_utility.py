@@ -25,7 +25,7 @@ class Joint(StructuredLearner):
     def _subsample_pool(self, rem):
         subpool = list(rem)
         self.rnd_state.shuffle(subpool)
-        subpool = subpool[:250]
+        subpool = subpool[:self.subsample]
 
         return subpool
 
@@ -61,26 +61,8 @@ class Joint(StructuredLearner):
         utilities = []  # two per document
         for i, x_i in enumerate(candidates):
             tra_x.append(x_i)
-            uts = []
-
-            # parallel = Parallel(n_jobs=2, verbose=True,
-            #                     pre_dispatch=4)
-            # scores = parallel(delayed(self.evaluation_on_validation_label, check_pickle=False)( lbl,
-            #                                 data.bow, tra_x, tra_y, data.validation,data.target[data.validation],i)
-            #                  for lbl in labels)
-            #
-            # uts = sorted(scores, key=lambda x: x[1])
-
-            for lbl in labels:
-                tra_y.append(lbl)
-                clf.fit(data.bow[tra_x], tra_y)
-                u = self.evaluation_on_validation(clf, data.bow[data.validation], data.target[data.validation])
-                uts.append((i, lbl, u))
-                # undo labels
-                tra_y = tra_y[:-1]
-
+            uts = [self.evaluation_on_validation_label(lbl, data, tra_x, tra_y, i) for lbl in labels]
             utilities.append(uts)
-
             # undo training instance
             tra_x = tra_x[:-1]
 
@@ -98,13 +80,17 @@ class Joint(StructuredLearner):
 
         return exp_util
 
-    def evaluation_on_validation_label(self, lbl, databow, tra_x, tra_y, val_train, val_target, i):
-        x = tra_x
-        y = tra_y.append(lbl)
-        clf = copy(self.model)
-        clf.fit(databow[x], y)
-        res = self.evaluation_on_validation(clf, databow[val_train], val_target)
-        return (i, lbl, res)
+    def evaluation_on_validation_label(self, lbl, data, tra_x, tra_y, i):
+        if lbl < 2: # if not neutral
+            x = tra_x
+            y = tra_y + [lbl]
+            clf = copy(self.model)
+            clf.fit(data.bow[x], y)
+            res = self.evaluation_on_validation(clf, data.validation_set.bow[data.validation], data.validation_set.target[data.validation] )
+            return (i, lbl, res)
+        else:
+            # utility of neutral label
+            return (i, lbl, 0)
 
     def evaluation_on_validation(self, clf, data, target):
 

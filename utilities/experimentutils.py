@@ -1,5 +1,6 @@
 from sklearn.datasets import base as bunch
-from learner.strategy import Joint
+# from learner.strategy import Joint
+from learner.joint_utility import Joint
 import numpy as np
 from nltk import RegexpTokenizer
 from nltk.stem import PorterStemmer

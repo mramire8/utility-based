@@ -25,6 +25,16 @@ class ExperimentJobs(Experiment):
     def __init__(self, config, verbose=False, debug=False):
         super(ExperimentJobs, self).__init__(config, verbose=verbose, debug=debug)
         self.save_all = True
+        self.validation_set = None
+
+
+    def _setup_options(self, config_obj):
+
+        super(ExperimentJobs,self)._setup_options(config_obj)
+
+        # experiment related config
+        config = cfgutil.get_section_options(config_obj, 'experiment')
+        self.validation_set = config['validation_set']
 
     def vectorize(self, data):
         def sentence_iterator(data):
@@ -115,9 +125,33 @@ class ExperimentJobs(Experiment):
 
         remaining = deque(rnd_set)
 
-        pool.remaining, pool.validation = self.split_validation(remaining)
+        if self.validation_set == 'test':
+            pool.validation_set = test
+            pool.validation = test_idx
+            pool.remaining = remaining
+        elif self.validation_set == 'heldout':
+            pool.validation_set = pool
+            pool.remaining, pool.validation = self.split_validation(remaining)
+        elif self.validation_set == 'train':
+            pool.validation_set = pool
+            pool.remaining = remaining
+            pool.validation = None
+        else:
+            raise ValueError("Oops, the validations set %s is not available. Check configuration file. " % (self.validation_set))
 
         return pool, test
+
+    def update_pool(self, pool, query, labels, train):
+        super(ExperimentJobs, self).update_pool(pool, query, labels, train)
+        if self.validation_set == 'train':
+            pool.validation = train.index
+
+        # for q, l in zip(query, labels):
+        #     pool.remaining.remove(q[0])
+        #     train.index.append(q[0])
+        #     train.target.append(l)
+
+        return pool, train
 
     def main_loop_jobs(self, learner, expert, budget, bootstrap, data, train_idx, test_idx, t):
 

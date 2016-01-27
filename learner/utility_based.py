@@ -1,4 +1,5 @@
-from strategy import Joint
+# from strategy import Joint
+from joint_utility import Joint
 import numpy as np
 from sklearn.metrics import accuracy_score, roc_auc_score
 
