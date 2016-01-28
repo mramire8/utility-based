@@ -1,9 +1,12 @@
 import numpy as np
 from scipy.sparse import vstack
 from copy import copy
-from sklearn.externals.joblib import Parallel, delayed
-from sklearn.base import clone
 from strategy import StructuredLearner
+
+# from sklearn.externals.joblib import Parallel, delayed
+# from sklearn.base import clone
+# from loss_functions import loss_conditional_error
+
 
 class Joint(StructuredLearner):
     """docstring for Joint"""
@@ -46,8 +49,7 @@ class Joint(StructuredLearner):
         else:
             max_util = [np.argmax(p) for p in util]  # snippet per document with max/min utility
 
-        order = np.argsort([util[i][u] for i, u in enumerate(max_util)])[
-                ::self.minimax]  # document with snippet utlity max/min
+        order = np.argsort([util[i][u] for i, u in enumerate(max_util)])[::self.minimax]  # document with snippet utlity max/min
 
         index = [(subpool[i], max_util[i]) for i in order[:step]]
 
@@ -57,11 +59,17 @@ class Joint(StructuredLearner):
         labels = self.model.classes_
         tra_y = copy(self.current_training_labels)
         tra_x = copy(self.current_training)
-        clf = copy(self.model)
         utilities = []  # two per document
         for i, x_i in enumerate(candidates):
             tra_x.append(x_i)
+
+        # =================
             uts = [self.evaluation_on_validation_label(lbl, data, tra_x, tra_y, i) for lbl in labels]
+        # # =================
+        #     parallel = Parallel(n_jobs=len(labels), verbose=True)
+        #     uts = parallel(delayed(_evaluation_on_validation_per_label)(clone(self.model), lbl, data, tra_x, tra_y, i, loss_conditional_error)
+        #                    for lbl in labels)
+        # =================
             utilities.append(uts)
             # undo training instance
             tra_x = tra_x[:-1]
@@ -86,7 +94,7 @@ class Joint(StructuredLearner):
             y = tra_y + [lbl]
             clf = copy(self.model)
             clf.fit(data.bow[x], y)
-            res = self.evaluation_on_validation(clf, data.validation_set.bow[data.validation], data.validation_set.target[data.validation] )
+            res = self.evaluation_on_validation(clf, data.validation_set.bow[data.validation], data.validation_set.target[data.validation])
             return (i, lbl, res)
         else:
             # utility of neutral label
@@ -123,3 +131,20 @@ class Joint(StructuredLearner):
         self.snippet_model.fit(vstack(snippets), labels)
 
         return self
+
+
+def _evaluation_on_validation_per_label(model, lbl, data, tra_x, tra_y, i, function):
+    if lbl < 2: # if not neutral
+        x = tra_x
+        y = tra_y + [lbl]
+        clf = copy(model)
+        clf.fit(data.bow[x], y)
+        res = _evaluation_on_validation(clf, data.validation_set.bow[data.validation], data.validation_set.target[data.validation], function)
+        return (i, lbl, res)
+    else:
+        # utility of neutral label
+        return (i, lbl, 0)
+
+
+def _evaluation_on_validation(clf, data, target, function):
+    return function(clf,data,target)

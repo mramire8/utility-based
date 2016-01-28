@@ -17,7 +17,35 @@ from time import time
 
 from experiment.base import Experiment
 
+import multiprocessing as mp
+import dill
+import copy_reg
+import types
+
+from pathos.multiprocessing import ProcessingPool as Pool
+
+
 __author__ = "mramire8"
+
+# def _pickle_method(method):
+#     func_name = method.im_func.__name__
+#     obj = method.im_self
+#     cls = method.im_class
+#     return _unpickle_method, (func_name, obj, cls)
+#
+# def _unpickle_method(func_name, obj, cls):
+#     for cls in cls.mro():
+#         try:
+#             func = cls.__dict__[func_name]
+#         except KeyError:
+#             pass
+#         else:
+#             break
+#         return func.__get__(obj, cls)
+#
+# copy_reg.pickle(types.MethodType, _pickle_method, _unpickle_method)
+
+
 
 
 class ExperimentJobs(Experiment):
@@ -67,9 +95,15 @@ class ExperimentJobs(Experiment):
         data.test.snippets = [snippet_bow[0 if i == 0 else ranges[i-1]:ranges[i]] for i in range(len(sizes))]
         data.test.sizes= sizes
         data.test.snippet_cost = cost
-
+        data.train.data = None
+        data.train.data = None
         return data
 
+    def bootstrap(self, pool, bt, train, bt_method=None):
+        train = super(ExperimentJobs, self).bootstrap(pool, bt, train, bt_method=bt_method)
+        if self.validation_set == 'train':
+            pool.validation = train.index
+        return train
 
     def start(self, n_jobs=1, pre_dispatch='2*n_jobs'):
         trial = []
@@ -93,7 +127,7 @@ class ExperimentJobs(Experiment):
                                       vct=self.vct, sent_tk=self.sent_tokenizer, seed=s,  cost_model=self.cost_model) for s in seeds]
 
 
-        expert = exputil.get_expert(cfgutil.get_section_options(self.config, 'expert'), size=len(self.data.train.data))
+        expert = exputil.get_expert(cfgutil.get_section_options(self.config, 'expert'), size=len(self.data.train.target))
 
         expert.fit(self.data.train.bow, y=self.data.train.target, vct=self.vct)
 
@@ -101,16 +135,25 @@ class ExperimentJobs(Experiment):
         t = 0
 
         self.print_lap("\nPreprocessed", t0)
+        #===================================
+        # parallel = Parallel(n_jobs=n_jobs, verbose=True,
+        #                     pre_dispatch=pre_dispatch)
+        # scores = parallel(delayed(self.main_loop_jobs,check_pickle=False)(learners[t], expert, self.budget, self.bootstrap_size,
+        #                                           self.data, tr[0],tr[1], t)
+        #                  for t, tr in enumerate(cv))
+        #===================================
 
-        parallel = Parallel(n_jobs=n_jobs, verbose=True,
-                            pre_dispatch=pre_dispatch)
-        scores = parallel(delayed(self.main_loop_jobs,check_pickle=False)(learners[t], expert, self.budget, self.bootstrap_size,
-                                                  self.data, tr[0],tr[1], t)
-                         for t, tr in enumerate(cv))
-        # return np.array(scores)[:, 0]
+        # procs = mp.Pool(len(cv))
+        # parameters = [(learners[t], expert, self.budget, self.bootstrap_size, self.data, tr[0],tr[1], t) for t, tr in enumerate(cv)]
+        # scores = procs.map(self.main_loop_jobs, parameters)
+        #===================================
+
+        procs = Pool(len(cv))
+        parameters = [(learners[t], expert, self.budget, self.bootstrap_size, self.data, tr[0],tr[1], t) for t, tr in enumerate(cv)]
+        scores = procs.map(self.main_loop_jobs, parameters)
+        #===================================
 
         self.print_lap("\nDone trials", t0)
-
 
         # save the results
         print scores
@@ -127,7 +170,7 @@ class ExperimentJobs(Experiment):
 
         if self.validation_set == 'test':
             pool.validation_set = test
-            pool.validation = test_idx
+            pool.validation = test_idx if len(test_idx) >0 else range(test.bow.shape[0])
             pool.remaining = remaining
         elif self.validation_set == 'heldout':
             pool.validation_set = pool
@@ -145,11 +188,6 @@ class ExperimentJobs(Experiment):
         super(ExperimentJobs, self).update_pool(pool, query, labels, train)
         if self.validation_set == 'train':
             pool.validation = train.index
-
-        # for q, l in zip(query, labels):
-        #     pool.remaining.remove(q[0])
-        #     train.index.append(q[0])
-        #     train.target.append(l)
 
         return pool, train
 
@@ -169,6 +207,9 @@ class ExperimentJobs(Experiment):
         labels = []
         query_true_labels = []
         classes = np.unique(pool.target)
+
+        print "Starting trial %s" % (t)
+
         while current_cost <= budget and iteration <= self.max_iteration and len(pool.remaining) > self.step:
             if iteration == 0:
                 # bootstrap

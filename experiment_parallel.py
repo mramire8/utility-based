@@ -27,7 +27,10 @@ ap.add_argument('--config',
                 type=str,
                 default='./default.cfg',
                 help='Experiment configuration file')
-
+ap.add_argument('--njobs',
+                type=int,
+                default=2,
+                help='to profile code execution')
 
 def main():
     from time import time
@@ -36,7 +39,7 @@ def main():
 
     config = cfgutils.get_config(args.config)
     experiment = ExperimentJobs(config, verbose=args.verbose, debug=args.debug)
-    experiment.start()
+    experiment.start(n_jobs=args.njobs)
     t1 = time()
     print "\nElapsed time: %.3f secs (%.3f mins)" % ((t1-t0), (t1-t0)/60)
 

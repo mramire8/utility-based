@@ -14,8 +14,6 @@ import numpy as np
 from collections import defaultdict, deque
 from learner.strategy import BootstrapFromEach
 from sklearn.datasets import base as bunch
-from sklearn.externals.joblib import Parallel, delayed, logger
-from sklearn.base import clone
 from time import time
 from sklearn.utils import safe_indexing
 
@@ -233,6 +231,7 @@ class Experiment(object):
         else:
             for q in train.index:
                 pool.remaining.remove(q)
+            # pool.validation = train.index
 
         return train
 
@@ -272,7 +271,7 @@ class Experiment(object):
         if self.verbose:
             if iteration == 0:
                 print "\nIT\tACCU\tAUC\tT0\tF1\tF0\tT1"
-            print "{0:0.2f}\t{1:.3f}\t{2:.3f}\t".format(cost, step['accuracy'], step['auc']),
+            print "{3}-{4}\t{0:0.2f}\t{1:.3f}\t{2:.3f}\t".format(cost, step['accuracy'], step['auc'], iteration, trial),
             try:
                 print "\t".join(["{0:.3f}".format(x) for x in np.reshape(oracle, 4)])
                 oracle_text = "\t".join(["{0:.3f}".format(x) for x in np.reshape(oracle, 4)])

@@ -24,3 +24,4 @@ class UtilityBasedLearner(Joint):
     def loss_error(self, clf, data, target):
         preds = clf.predict(data)
         return accuracy_score(target, preds)
+
