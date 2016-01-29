@@ -16,12 +16,12 @@ from time import time
 
 from experiment.base import Experiment
 
-import multiprocessing as mp
+# import multiprocessing as mp
 import dill
 import copy_reg
-import types
+# import types
 
-from pathos.multiprocessing import ProcessingPool as Pool
+# from pathos.multiprocessing import ProcessingPool as Pool
 
 
 __author__ = "mramire8"
@@ -194,7 +194,7 @@ class ExperimentJobs(Experiment):
             else:
                 # select query and query labels
                 query = learner.next_query(pool, self.step)
-
+                print query
                 query_true_labels = pool.target[[di for di, _ in query]]
 
                 labels = expert.label(self.get_query(pool,query), y=query_true_labels)

@@ -31,6 +31,14 @@ def log_word_cost(query, cost_model=None):
     return np.log2(1+word_cost(query, cost_model=cost_model))
 
 
+def log_linear_cost(query, cost_model=None):
+    words = word_cost(query, cost_model=cost_model)
+    if words <= 1:
+        return 4.
+    else:
+        return 5*np.log(words) - 7
+
+
 def intra_cost(query, cost_model=None):
     if cost_model is None:
         raise ValueError("Cost model is not available.")
