@@ -116,7 +116,7 @@ def get_learner(learn_config, **kwargs):
     if learn_config['type'] == 'utility-based':
         from learner.utility_based import UtilityBasedLearner
         learner = UtilityBasedLearner(clf, snippet_fn=None, utility_fn=None, seed=seed)
-    elif learn_config['type'] == 'utility-first1':
+    elif learn_config['type'] == 'utility-firstk':
         from learner.utility_based import FirstK
         learner = FirstK(clf, snippet_fn=None, utility_fn=None, seed=seed)
     elif learn_config['type'] == 'utility-cheat':
@@ -126,7 +126,7 @@ def get_learner(learn_config, **kwargs):
     if learn_config['type'] == 'const-utility':
         from learner.sequential_utility import Sequential
         learner = Sequential(clf, snippet_fn=None, utility_fn=None, seed=seed)
-    elif learn_config['type'] == 'const-first1':
+    elif learn_config['type'] == 'const-firstk':
         from learner.sequential_utility import FirstK
         learner = FirstK(clf, snippet_fn=None, utility_fn=None, seed=seed)
     elif learn_config['type'] == 'const-cheat':
