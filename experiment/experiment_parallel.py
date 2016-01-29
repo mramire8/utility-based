@@ -194,7 +194,7 @@ class ExperimentJobs(Experiment):
             else:
                 # select query and query labels
                 query = learner.next_query(pool, self.step)
-                
+
                 query_true_labels = pool.target[[di for di, _ in query]]
 
                 labels = expert.label(self.get_query(pool,query), y=query_true_labels)
