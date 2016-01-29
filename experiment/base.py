@@ -147,9 +147,9 @@ class Experiment(object):
         self.output = config['outputdir']
         self.seed = config['seed']
         self.dataname = config['data']
-        # self.bootstrap_size = config['bootstrap']
         self.bootstrap_size, self.bootstrap_method = exputil.get_bootstrap(config)
         self.costfn = exputil.get_costfn(config['costfunction'])
+
         if 'cost_model' in config.keys():
             self.cost_model = config['cost_model']
             self.cost_base = config['cost_base']

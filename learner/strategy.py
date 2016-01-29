@@ -115,7 +115,10 @@ class StructuredLearner(ActiveLearner):
     ## SNIPPET UTILITY FUNCTIONS
 
     def _snippet_rnd(self, X):
-        return self.sent_rnd.random_sample(X.shape[0])
+        if hasattr(X, 'shape'):
+            return self.sent_rnd.random_sample(X.shape[0])
+        else:
+            return self.sent_rnd.random_sample(X)
 
     def _get_snippets(self, data, candidates):
 

@@ -22,7 +22,7 @@ def sample_data(data, train_idx, test_idx):
 
     # sample.target_names = data.target_names
 
-    sample.train.data = safe_indexing(data.train.data,train_idx)
+    # sample.train.data = safe_indexing(data.train.data,train_idx)
     sample.train.target = safe_indexing(data.train.target,train_idx)
     sample.train.bow = safe_indexing(data.train.bow,train_idx)
     sample.train.remaining = []
@@ -100,14 +100,39 @@ def get_classifier(cl_name, **kwargs):
     return clf
 
 
-def get_learner(learn_config, vct=None, sent_tk=None, seed=None, cost_model=None):
+# def get_learner(learn_config, vct=None, sent_tk=None, seed=None, cost_model=None):
+def get_learner(learn_config, **kwargs):
+
+    vct = kwargs['vct']
+    sent_tk = kwargs['vct']
+    cost_model = kwargs['cost_model']
+    seed = kwargs['seed']
+
     from learner.base import Learner
     cl_name = learn_config['model']
     clf = get_classifier(cl_name, parameter=learn_config['parameter'])
     learner = Learner(clf)
+
     if learn_config['type'] == 'utility-based':
         from learner.utility_based import UtilityBasedLearner
         learner = UtilityBasedLearner(clf, snippet_fn=None, utility_fn=None, seed=seed)
+    elif learn_config['type'] == 'utility-first1':
+        from learner.utility_based import FirstK
+        learner = FirstK(clf, snippet_fn=None, utility_fn=None, seed=seed)
+    elif learn_config['type'] == 'utility-cheat':
+        from learner.utility_based import JointCheat
+        snp_model =  kwargs['snip_model']
+        learner = JointCheat(clf, snippet_fn=None, utility_fn=None, seed=seed, snip_model=snp_model)
+    if learn_config['type'] == 'const-utility':
+        from learner.sequential_utility import Sequential
+        learner = Sequential(clf, snippet_fn=None, utility_fn=None, seed=seed)
+    elif learn_config['type'] == 'const-first1':
+        from learner.sequential_utility import FirstK
+        learner = FirstK(clf, snippet_fn=None, utility_fn=None, seed=seed)
+    elif learn_config['type'] == 'const-cheat':
+        from learner.sequential_utility import JointCheat
+        snp_model =  kwargs['snip_model']
+        learner = JointCheat(clf, snippet_fn=None, utility_fn=None, seed=seed, snip_model=snp_model)
     else:
         raise ValueError("We don't know {} leaner".format(learn_config['type']))
     learner.set_loss_function(learn_config['loss_function'])

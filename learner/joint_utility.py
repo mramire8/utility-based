@@ -3,11 +3,12 @@ from scipy.sparse import vstack
 from copy import copy
 from strategy import StructuredLearner
 
-# from sklearn.externals.joblib import Parallel, delayed
-# from sklearn.base import clone
+from sklearn.externals.joblib import Parallel, delayed
+from sklearn.base import clone
 # from loss_functions import loss_conditional_error
 
 
+#######################################################################################################################
 class Joint(StructuredLearner):
     """docstring for Joint"""
 
@@ -56,37 +57,37 @@ class Joint(StructuredLearner):
         return index
 
     def expected_utility(self, data, candidates):
-        labels = self.model.classes_
-        tra_y = copy(self.current_training_labels)
-        tra_x = copy(self.current_training)
-        utilities = []  # two per document
-        for i, x_i in enumerate(candidates):
-            tra_x.append(x_i)
 
-        # =================
-            uts = [self.evaluation_on_validation_label(lbl, data, tra_x, tra_y, i) for lbl in labels]
-        # # =================
-        #     parallel = Parallel(n_jobs=len(labels), verbose=True)
-        #     uts = parallel(delayed(_evaluation_on_validation_per_label)(clone(self.model), lbl, data, tra_x, tra_y, i, loss_conditional_error)
-        #                    for lbl in labels)
-        # =================
-            utilities.append(uts)
-            # undo training instance
-            tra_x = tra_x[:-1]
+        utilities = self.compute_utility(data, candidates)
 
         snippets = self._get_snippets(data, candidates)
-        probs = [self.snippet_model.predict_proba(snip) for snip in snippets]  # one per snippet
+        probs = self._get_snippet_probas(snippets)  # one per snippet
         cost = data.snippet_cost[candidates]
         exp_util = []
 
         for ut, pr, co in zip(utilities, probs, cost):  # for every document
             exp = []
             for p, c in zip(pr, co):  # for every snippet in the document
-                exp.append((p[0] * ut[0][2] + p[1] * ut[1][2]) / c)  ## utility over cost
+                exp.append((p[0] * ut[0][2] + p[1] * ut[1][2]) / c)  ## utility over cost, ignore lbl =2
 
             exp_util.extend([exp])  # one per snippet
 
         return exp_util
+
+    def compute_utility(self, data, candidates):
+        labels = self.model.classes_
+        tra_y = copy(self.current_training_labels)
+        tra_x = copy(self.current_training)
+        utilities = []  # two per document
+        for i, x_i in enumerate(candidates):
+            tra_x.append(x_i)
+            uts = [self.evaluation_on_validation_label(lbl, data, tra_x, tra_y, i) for lbl in labels]
+            utilities.append(uts)
+            # undo training instance
+            tra_x = tra_x[:-1]
+
+    def _get_snippet_probas(self, snippets):
+        return [self.snippet_model.predict_proba(snip) for snip in snippets]
 
     def evaluation_on_validation_label(self, lbl, data, tra_x, tra_y, i):
         if lbl < 2: # if not neutral
@@ -133,6 +134,8 @@ class Joint(StructuredLearner):
         return self
 
 
+#######################################################################################################################
+# Module functions
 def _evaluation_on_validation_per_label(model, lbl, data, tra_x, tra_y, i, function):
     if lbl < 2: # if not neutral
         x = tra_x

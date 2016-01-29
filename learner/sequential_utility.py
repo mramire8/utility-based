@@ -1,23 +1,22 @@
 import numpy as np
-from scipy.sparse import vstack
-from copy import copy
-from sklearn.externals.joblib import Parallel, delayed
-from sklearn.base import clone
-
-from .joint_utility import Joint
+from .utility_based import UtilityBasedLearner
+from utility_based import JointCheat
 
 
-class Sequential(Joint):
-    """docstring for Joint"""
+class Sequential(UtilityBasedLearner):
+    """Class that selects snippets per document, documents are not re-ordered. These simulates a constant
+    utility scenario """
 
     def __init__(self, model, snippet_fn=None, utility_fn=None, minimax=-1, seed=1):
-        super(Sequential, self).__init__(model, snippet_fn=snippet_fn, utility_fn=utility_fn, seed=seed)
-        self.current_training = []
-        self.current_training_labels = []
-        self.minimax = minimax
-        self.validation_index = []
-        self.loss_fn = None
-        self.utility_base = self._utility_validation
+        super(Sequential, self).__init__(model, snippet_fn=snippet_fn, utility_fn=utility_fn,
+                                         minimax=minimax, seed=seed)
+
+    def _subsample_pool(self, rem):
+        subpool = list(rem)
+        # self.rnd_state.shuffle(subpool)
+        subpool = subpool[:self.subsample]
+
+        return subpool
 
     def next_query(self, pool, step):
 
@@ -28,6 +27,7 @@ class Sequential(Joint):
         :return:
         """
         self.subsample = step
+
         subpool = self._subsample_pool(pool.remaining)
 
         util = self.expected_utility(pool, subpool)  # util list of (utility_score, snipet index of max)
@@ -37,67 +37,68 @@ class Sequential(Joint):
         else:
             max_util = [np.argmax(p) for p in util]  # snippet per document with max/min utility
 
-        order = np.argsort([util[i][u] for i, u in enumerate(max_util)])[
-                ::self.minimax]  # document with snippet utlity max/min
+        order = range(len(subpool)) # don't alter the order of documents
 
         index = [(subpool[i], max_util[i]) for i in order[:step]]
 
         return index
 
-    def _utility_const(self, data, candidates):
 
-        utilities = [[1,1]] * len(candidates)
+# ================================================================================================
+class FirstK(Sequential):
 
-        return utilities
+    def __init__(self, model, snippet_fn=None, utility_fn=None, minimax=-1, seed=1):
+        super(FirstK, self).__init__(model, snippet_fn=snippet_fn, utility_fn=utility_fn,
+                                     seed=seed, minimax=minimax)
 
-    def _utility_validation(self, data, candidates):
-        labels = self.model.classes_
-        tra_y = copy(self.current_training_labels)
-        tra_x = copy(self.current_training)
-        clf = copy(self.model)
-        utilities = []  # two per document
-        for i, x_i in enumerate(candidates):
-            tra_x.append(x_i)
-            uts = []
+    def next_query(self, pool, step):
 
-            # parallel = Parallel(n_jobs=2, verbose=True,
-            #                     pre_dispatch=4)
-            # scores = parallel(delayed(self.evaluation_on_validation_label, check_pickle=False)( lbl,
-            #                                 data.bow, tra_x, tra_y, data.validation,data.target[data.validation],i)
-            #                  for lbl in labels)
-            #
-            # uts = sorted(scores, key=lambda x: x[1])
+        """
+        Select the first snippet of every instance in the pool.
+        :param pool:
+        :param step:
+        :return:
+        """
+        self.subsample = step
 
-            for lbl in labels:
-                tra_y.append(lbl)
-                clf.fit(data.bow[tra_x], tra_y)
-                u = self.evaluation_on_validation(clf, data.bow[data.validation], data.target[data.validation])
-                uts.append((i, lbl, u))
-                # undo labels
-                tra_y = tra_y[:-1]
+        subpool = self._subsample_pool(pool.remaining)
 
-            utilities.append(uts)
+        index = [(s, 1) for s in subpool[:step]]
+        return index
 
-            # undo training instance
-            tra_x = tra_x[:-1]
 
-        return utilities
+#######################################################################################################################
+class SequentialJointCheat(JointCheat):
+    """docstring for Joint"""
 
-    def expected_utility(self, data, candidates):
+    def __init__(self, model, snippet_fn=None, utility_fn=None, minimax=-1, seed=1, snip_model=None):
+        super(JointCheat, self).__init__(model, snippet_fn=snippet_fn, utility_fn=utility_fn,
+                                         seed=seed, minimax=minimax)
+        self.snippet_model = snip_model
 
-        utilities = self.utility_base(data, candidates)
+    def _subsample_pool(self, rem):
+        subpool = list(rem)
+        # self.rnd_state.shuffle(subpool)
+        subpool = subpool[:self.subsample]
 
-        # select snippets
-        snippets = self._get_snippets(data, candidates)
-        probs = [self.snippet_model.predict_proba(snip) for snip in snippets]  # one per snippet
-        cost = data.snippet_cost[candidates]
-        exp_util = []
+        return subpool
 
-        for ut, pr, co in zip(utilities, probs, cost):  # for every document
-            exp = []
-            for p, c in zip(pr, co):  # for every snippet in the document
-                exp.append((p[0] * ut[0][2] + p[1] * ut[1][2]) / c)  ## utility over cost
+    def next_query(self, pool, step):
+        self.subsample = step
 
-            exp_util.extend([exp])  # one per snippet
+        subpool = self._subsample_pool(pool.remaining)
 
-        return exp_util
+        util = self.expected_utility(pool, subpool)  # util list of (utility_score, snipet index of max)
+
+        if self.minimax > 0:  ## minimizing
+            max_util = [np.argmin(p) for p in util]  # snippet per document with max/min utility
+        else:
+            max_util = [np.argmax(p) for p in util]  # snippet per document with max/min utility
+
+        order = range(len(subpool)) # don't alter the order of documents
+
+        index = [(subpool[i], max_util[i]) for i in order[:step]]
+
+        return index
+
+

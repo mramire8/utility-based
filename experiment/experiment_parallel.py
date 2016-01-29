@@ -3,16 +3,15 @@ import os, sys
 sys.path.append(os.path.abspath("."))
 sys.path.append(os.path.abspath("../"))
 
-from sklearn import metrics
+
 import utilities.experimentutils as exputil
 import utilities.datautils as datautil
 import utilities.configutils as cfgutil
-from sklearn import cross_validation
+
 import numpy as np
 from collections import defaultdict, deque
 from sklearn.datasets import base as bunch
 from sklearn.externals.joblib import Parallel, delayed, logger
-from sklearn.base import clone
 from time import time
 
 from experiment.base import Experiment
@@ -27,26 +26,6 @@ from pathos.multiprocessing import ProcessingPool as Pool
 
 __author__ = "mramire8"
 
-# def _pickle_method(method):
-#     func_name = method.im_func.__name__
-#     obj = method.im_self
-#     cls = method.im_class
-#     return _unpickle_method, (func_name, obj, cls)
-#
-# def _unpickle_method(func_name, obj, cls):
-#     for cls in cls.mro():
-#         try:
-#             func = cls.__dict__[func_name]
-#         except KeyError:
-#             pass
-#         else:
-#             break
-#         return func.__get__(obj, cls)
-#
-# copy_reg.pickle(types.MethodType, _pickle_method, _unpickle_method)
-
-
-
 
 class ExperimentJobs(Experiment):
 
@@ -54,7 +33,6 @@ class ExperimentJobs(Experiment):
         super(ExperimentJobs, self).__init__(config, verbose=verbose, debug=debug)
         self.save_all = True
         self.validation_set = None
-
 
     def _setup_options(self, config_obj):
 
@@ -95,8 +73,12 @@ class ExperimentJobs(Experiment):
         data.test.snippets = [snippet_bow[0 if i == 0 else ranges[i-1]:ranges[i]] for i in range(len(sizes))]
         data.test.sizes= sizes
         data.test.snippet_cost = cost
+
+
         data.train.data = None
         data.train.data = None
+        self.vct = None
+
         return data
 
     def bootstrap(self, pool, bt, train, bt_method=None):
@@ -120,43 +102,35 @@ class ExperimentJobs(Experiment):
 
         seeds = np.arange(len(cv)) * 10 + 10
 
-        # learner = exputil.get_learner(cfgutil.get_section_options(self.config, 'learner'),
-        #                               vct=self.vct, sent_tk=self.sent_tokenizer, seed=0,  cost_model=self.cost_model)
-        #
-        learners = [exputil.get_learner(cfgutil.get_section_options(self.config, 'learner'),
-                                      vct=self.vct, sent_tk=self.sent_tokenizer, seed=s,  cost_model=self.cost_model) for s in seeds]
-
-
         expert = exputil.get_expert(cfgutil.get_section_options(self.config, 'expert'), size=len(self.data.train.target))
 
         expert.fit(self.data.train.bow, y=self.data.train.target, vct=self.vct)
 
+        lrnr_setup= {'vct':self.vct, "sent_tk":self.sent_tokenizer,  "cost_model":self.cost_model}
+        lrnr_type = cfgutil.get_section_option(self.config, 'learner', 'type')
+        if lrnr_type == 'utility-cheat':
+            lrnr_setup.update({'snip_model':expert.oracle})
 
+        # learners = [exputil.get_learner(cfgutil.get_section_options(self.config, 'learner'),
+        #                               vct=self.vct, sent_tk=self.sent_tokenizer, seed=s,  cost_model=self.cost_model) for s in seeds]
+
+        learners = [exputil.get_learner(cfgutil.get_section_options(self.config, 'learner'),
+                                        seed=s, **lrnr_setup) for s in seeds]
         t = 0
 
         self.print_lap("\nPreprocessed", t0)
         #===================================
-        # parallel = Parallel(n_jobs=n_jobs, verbose=True,
-        #                     pre_dispatch=pre_dispatch)
-        # scores = parallel(delayed(self.main_loop_jobs,check_pickle=False)(learners[t], expert, self.budget, self.bootstrap_size,
-        #                                           self.data, tr[0],tr[1], t)
-        #                  for t, tr in enumerate(cv))
-        #===================================
-
-        # procs = mp.Pool(len(cv))
-        # parameters = [(learners[t], expert, self.budget, self.bootstrap_size, self.data, tr[0],tr[1], t) for t, tr in enumerate(cv)]
-        # scores = procs.map(self.main_loop_jobs, parameters)
-        #===================================
-
-        procs = Pool(len(cv))
-        parameters = [(learners[t], expert, self.budget, self.bootstrap_size, self.data, tr[0],tr[1], t) for t, tr in enumerate(cv)]
-        scores = procs.map(self.main_loop_jobs, parameters)
+        parallel = Parallel(n_jobs=n_jobs, verbose=True,
+                            pre_dispatch=pre_dispatch)
+        scores = parallel(delayed(self.main_loop_jobs,check_pickle=False)(learners[t], expert, self.budget, self.bootstrap_size,
+                                                  self.data, tr[0],tr[1], t)
+                         for t, tr in enumerate(cv))
         #===================================
 
         self.print_lap("\nDone trials", t0)
 
         # save the results
-        print scores
+
         self.report_results(scores)
 
     def safe_sample(self, data, train_idx, test_idx):
@@ -179,6 +153,7 @@ class ExperimentJobs(Experiment):
             pool.validation_set = pool
             pool.remaining = remaining
             pool.validation = None
+            raise ValueError("Oops, the validations set %s is not available. Check configuration file. " % (self.validation_set))
         else:
             raise ValueError("Oops, the validations set %s is not available. Check configuration file. " % (self.validation_set))
 
