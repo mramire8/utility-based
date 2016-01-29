@@ -130,9 +130,9 @@ def get_learner(learn_config, **kwargs):
         from learner.sequential_utility import FirstK
         learner = FirstK(clf, snippet_fn=None, utility_fn=None, seed=seed)
     elif learn_config['type'] == 'const-cheat':
-        from learner.sequential_utility import JointCheat
+        from learner.sequential_utility import SequentialJointCheat
         snp_model =  kwargs['snip_model']
-        learner = JointCheat(clf, snippet_fn=None, utility_fn=None, seed=seed, snip_model=snp_model)
+        learner = SequentialJointCheat(clf, snippet_fn=None, utility_fn=None, seed=seed, snip_model=snp_model)
     else:
         raise ValueError("We don't know {} leaner".format(learn_config['type']))
     learner.set_loss_function(learn_config['loss_function'])

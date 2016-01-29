@@ -51,6 +51,13 @@ class FirstK(Sequential):
         super(FirstK, self).__init__(model, snippet_fn=snippet_fn, utility_fn=utility_fn,
                                      seed=seed, minimax=minimax)
 
+    def _subsample_pool(self, rem):
+        subpool = list(rem)
+        # self.rnd_state.shuffle(subpool)
+        subpool = subpool[:self.subsample]
+
+        return subpool
+
     def next_query(self, pool, step):
 
         """
@@ -63,7 +70,7 @@ class FirstK(Sequential):
 
         subpool = self._subsample_pool(pool.remaining)
 
-        index = [(s, 1) for s in subpool[:step]]
+        index = [(s, 0) for s in subpool[:step]]
         return index
 
 

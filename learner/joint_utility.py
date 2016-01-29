@@ -85,6 +85,7 @@ class Joint(StructuredLearner):
             utilities.append(uts)
             # undo training instance
             tra_x = tra_x[:-1]
+        return utilities
 
     def _get_snippet_probas(self, snippets):
         return [self.snippet_model.predict_proba(snip) for snip in snippets]

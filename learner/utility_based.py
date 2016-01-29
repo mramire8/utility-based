@@ -112,6 +112,6 @@ class JointCheat(UtilityBasedLearner):
 
         probs = [self.snippet_model.predict_proba(snip) for snip in snippets]
 
-        corrected = [transform_label(p) for ps in probs for p in ps]
+        corrected = [[transform_label(p) for p in ps] for ps in probs]
 
         return corrected

@@ -29,7 +29,7 @@ ap.add_argument('--config',
                 help='Experiment configuration file')
 ap.add_argument('--njobs',
                 type=int,
-                default=2,
+                default=1,
                 help='to profile code execution')
 
 def main():
