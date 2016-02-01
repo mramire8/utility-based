@@ -141,6 +141,12 @@ def get_learner(learn_config, **kwargs):
     learner.set_cost_model(cost_model)
     learner.set_cost_fn(get_costfn(learn_config['cost_function']))
 
+    if hasattr(learner,'validation_method'):
+        method = 'eval'
+        if kwargs['validation_set'] == 'train':
+            method = 'cross-validation'
+        learner.set_validation_method(method)
+
     return learner
 
 

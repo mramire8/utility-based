@@ -6,7 +6,8 @@ from strategy import StructuredLearner
 from sklearn.externals.joblib import Parallel, delayed
 from sklearn.base import clone
 # from loss_functions import loss_conditional_error
-
+from sklearn.cross_validation import cross_val_predict
+from sklearn.metrics import accuracy_score
 
 #######################################################################################################################
 class Joint(StructuredLearner):
@@ -19,12 +20,16 @@ class Joint(StructuredLearner):
         self.minimax = minimax
         self.validation_index = []
         self.loss_fn = None
+        self.validation_method='eval'
 
     def set_minimax(self, minimax):
         if minimax == 'maximize':
             self.minimax = -1
         else:
             self.minimax = 1
+
+    def set_validation_method(self, method):
+        self.validation_method = method
 
     def _subsample_pool(self, rem):
         subpool = list(rem)
@@ -104,9 +109,11 @@ class Joint(StructuredLearner):
 
     def evaluation_on_validation(self, clf, data, target):
 
-        loss = self.loss_fn(clf, data, target)
-
-        return loss
+        if self.validation_method == 'cross-validation':
+            predicted = cross_val_predict(clf, data, target, cv=10)
+            return accuracy_score(target, predicted)
+        else:
+            return self.loss_fn(clf, data, target)
 
     def fit(self, data, train=[]):
 

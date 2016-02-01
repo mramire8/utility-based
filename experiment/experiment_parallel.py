@@ -106,7 +106,8 @@ class ExperimentJobs(Experiment):
 
         expert.fit(self.data.train.bow, y=self.data.train.target, vct=self.vct)
 
-        lrnr_setup= {'vct':self.vct, "sent_tk":self.sent_tokenizer,  "cost_model":self.cost_model}
+        lrnr_setup= {'vct':self.vct, "sent_tk":self.sent_tokenizer,  "cost_model":self.cost_model,
+                     'validation_set':self.validation_set}
         lrnr_type = cfgutil.get_section_option(self.config, 'learner', 'type')
         if lrnr_type in ['utility-cheat','const-cheat']:
             lrnr_setup.update({'snip_model':expert.oracle})
@@ -153,7 +154,6 @@ class ExperimentJobs(Experiment):
             pool.validation_set = pool
             pool.remaining = remaining
             pool.validation = None
-            raise ValueError("Oops, the validations set %s is not available. Check configuration file. " % (self.validation_set))
         else:
             raise ValueError("Oops, the validations set %s is not available. Check configuration file. " % (self.validation_set))
 
