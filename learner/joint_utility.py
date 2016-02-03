@@ -63,7 +63,7 @@ class Joint(StructuredLearner):
 
     def expected_utility(self, data, candidates):
 
-        utilities = self.compute_utility(data, candidates)
+        utilities = self.compute_utility_per_document(data, candidates)
 
         snippets = self._get_snippets(data, candidates)
         probs = self._get_snippet_probas(snippets)  # one per snippet
@@ -79,7 +79,7 @@ class Joint(StructuredLearner):
 
         return exp_util
 
-    def compute_utility(self, data, candidates):
+    def compute_utility_per_document(self, data, candidates):
         labels = self.model.classes_
         tra_y = copy(self.current_training_labels)
         tra_x = copy(self.current_training)
@@ -108,7 +108,7 @@ class Joint(StructuredLearner):
             return (i, lbl, 0)
 
     def evaluation_on_validation(self, clf, data, target):
-
+        from sklearn.metrics import fbeta_score, make_scorer
         if self.validation_method == 'cross-validation':
             predicted = cross_val_predict(clf, data, target, cv=10)
             return accuracy_score(target, predicted)

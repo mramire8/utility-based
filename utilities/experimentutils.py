@@ -145,6 +145,8 @@ def get_learner(learn_config, **kwargs):
         method = 'eval'
         if kwargs['validation_set'] == 'train':
             method = 'cross-validation'
+        elif 'validation_method' in learn_config:
+            method = learn_config['validation_method']
         learner.set_validation_method(method)
 
     return learner
