@@ -2,12 +2,10 @@ import numpy as np
 from scipy.sparse import vstack
 from copy import copy
 from strategy import StructuredLearner
-
-from sklearn.externals.joblib import Parallel, delayed
-from sklearn.base import clone
-# from loss_functions import loss_conditional_error
-from sklearn.cross_validation import cross_val_predict
+from sklearn.cross_validation import StratifiedKFold
+from sklearn.cross_validation import cross_val_predict, cross_val_score
 from sklearn.metrics import accuracy_score
+from utilities import scoreutils
 
 #######################################################################################################################
 class Joint(StructuredLearner):
@@ -107,11 +105,23 @@ class Joint(StructuredLearner):
             # utility of neutral label
             return (i, lbl, 0)
 
+    def cv_probability(self, clf, data, target, n_folds=10):
+        skf = StratifiedKFold(target, n_folds=n_folds)
+        scores = []
+        for train_index, test_index in skf:
+            X_train, X_test = data[train_index], data[test_index]
+            y_train, y_test = target[train_index], target[test_index]
+            clf.fit(X_train, y_train)
+            predictions = clf.predict_proba(X_test)
+            scores.extend([predictions[i][j] for i,j in enumerate(y_test)])
+        return np.mean(scores)
+
     def evaluation_on_validation(self, clf, data, target):
         from sklearn.metrics import fbeta_score, make_scorer
         if self.validation_method == 'cross-validation':
-            predicted = cross_val_predict(clf, data, target, cv=10)
-            return accuracy_score(target, predicted)
+            # predicted = cross_val_predict(clf, data, target, cv=10)
+            # return accuracy_score(target, predicted)
+            return self.cv_probability(clf, data, target, n_folds=10)
         else:
             return self.loss_fn(clf, data, target)
 

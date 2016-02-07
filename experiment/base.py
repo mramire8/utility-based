@@ -94,7 +94,7 @@ class Experiment(object):
         snippets = self.sent_tokenizer.tokenize_sents(sample.train.data)
         snippet_bow = self.vct.transform(sentence_iterator(snippets))
         sizes = np.array([len(snip) for snip in snippets])
-        cost = np.array([[self.costfn(si) for si in s] for s in snippets])
+        cost = np.array([[self.costfn(si, cost_model=self.cost_model) for si in s] for s in snippets])
 
         sample.train.snippets=snippet_bow
         sample.train.sizes=sizes
@@ -104,7 +104,7 @@ class Experiment(object):
         snippet_bow = self.vct.transform(sentence_iterator(snippets))
         sizes = np.array([len(snip) for snip in snippets])
         # cost = np.array([self.costfn(s) for s in sentence_iterator(snippets)])
-        cost = np.array([[self.costfn(si) for si in s] for s in snippets])
+        cost = np.array([[self.costfn(si, cost_model=self.cost_model) for si in s] for s in snippets])
 
         sample.test.snippets=snippet_bow
         sample.test.sizes=sizes
@@ -152,7 +152,7 @@ class Experiment(object):
 
         if 'cost_model' in config.keys():
             self.cost_model = config['cost_model']
-            self.cost_base = config['cost_base']
+            # self.cost_base = config['cost_base']
 
         # data related config
         config = cfgutil.get_section_options(config_obj, 'data')
@@ -453,16 +453,16 @@ class Experiment(object):
         for tr in results:
             c, p, s, n = self._get_iteration(tr['accuracy'])
             # c, p = self._extrapolate(p,c,self.cost_model[self.cost_base],self.trials)
-            c, p = self._extrapolate(p,c,self.costfn(self.cost_base),self.trials)
+            c, p = self._extrapolate(p, c, self.costfn(self.cost_base, cost_model=self.cost_model), self.trials)
             accu.append(p)
             cost.append(c)
             c, p, s, n = self._get_iteration(tr['auc'])
             # c, p = self._extrapolate(p,c,self.cost_model[self.cost_base],self.trials)
-            c, p = self._extrapolate(p,c,self.costfn(self.cost_base),self.trials)
+            c, p = self._extrapolate(p, c, self.costfn(self.cost_base, cost_model=self.cost_model), self.trials)
             auc.append(p)
             c, p, s, n = self._get_cm_iteration(tr['ora_accu'])
             # c, p = self._extrapolate(p,c,self.cost_model[self.cost_base],self.trials)
-            c, p = self._extrapolate(p,c,self.costfn(self.cost_base),self.trials)
+            c, p = self._extrapolate(p, c, self.costfn(self.cost_base, cost_model=self.cost_model), self.trials)
             ora.append(p)
         min_x = min([len(m) for m in cost])
 

@@ -56,7 +56,7 @@ class ExperimentJobs(Experiment):
         snippets = self.sent_tokenizer.tokenize_sents(data.train.data)
         snippet_bow = self.vct.transform(sentence_iterator(snippets))
         sizes = np.array([len(snip) for snip in snippets])
-        cost = np.array([[self.costfn(si) for si in s] for s in snippets])
+        cost = np.array([[self.costfn(si, cost_model=self.cost_model) for si in s] for s in snippets])
 
         ranges = np.cumsum(sizes)
         data.train.snippets = [snippet_bow[0 if i == 0 else ranges[i-1]:ranges[i]] for i in range(len(sizes))]
@@ -67,7 +67,7 @@ class ExperimentJobs(Experiment):
         snippets = self.sent_tokenizer.tokenize_sents(data.test.data)
         snippet_bow = self.vct.transform(sentence_iterator(snippets))
         sizes = np.array([len(snip) for snip in snippets])
-        cost = np.array([[self.costfn(si) for si in s] for s in snippets])
+        cost = np.array([[self.costfn(si, cost_model=self.cost_model) for si in s] for s in snippets])
 
         ranges = np.cumsum(sizes)
         data.test.snippets = [snippet_bow[0 if i == 0 else ranges[i-1]:ranges[i]] for i in range(len(sizes))]
@@ -112,21 +112,16 @@ class ExperimentJobs(Experiment):
         if lrnr_type in ['utility-cheat','const-cheat']:
             lrnr_setup.update({'snip_model':expert.oracle})
 
-        # learners = [exputil.get_learner(cfgutil.get_section_options(self.config, 'learner'),
-        #                               vct=self.vct, sent_tk=self.sent_tokenizer, seed=s,  cost_model=self.cost_model) for s in seeds]
-
         learners = [exputil.get_learner(cfgutil.get_section_options(self.config, 'learner'),
                                         seed=s, **lrnr_setup) for s in seeds]
-        t = 0
-
         self.print_lap("\nPreprocessed", t0)
-        #===================================
+        # ===================================
         parallel = Parallel(n_jobs=n_jobs, verbose=True,
                             pre_dispatch=pre_dispatch)
         scores = parallel(delayed(self.main_loop_jobs,check_pickle=False)(learners[t], expert, self.budget, self.bootstrap_size,
                                                   self.data, tr[0],tr[1], t)
                          for t, tr in enumerate(cv))
-        #===================================
+        # ===================================
 
         self.print_lap("\nDone trials", t0)
 
