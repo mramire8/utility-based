@@ -168,8 +168,11 @@ class Experiment(object):
             args.update({'snip_size':config['snip_size']})
         self.sent_tokenizer = exputil.get_tokenizer(config['sent_tokenizer'], **args)
 
-        if not os.path.exists(self.output):
-            os.makedirs(self.output)
+        try:
+            if not os.path.exists(self.output):
+                os.makedirs(self.output)
+        except OSError:
+            pass
 
     def print_lap(self, msg, t0):
         t1 = time()
