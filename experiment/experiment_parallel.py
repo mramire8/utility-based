@@ -192,7 +192,8 @@ class ExperimentJobs(Experiment):
                 query_index = [di for di, _ in query]
                 query_true_labels = pool.target[query_index]
 
-                labels = expert.label(self.get_query(pool,query), y=query_true_labels, size=pool.sizes[query_index], index=query)
+                labels = expert.label(self.get_query(pool,query), y=query_true_labels,
+                                      size=pool.sizes[query_index], index=query)
 
                 # update pool and cost
                 pool, train = self.update_pool(pool, query, labels, train)

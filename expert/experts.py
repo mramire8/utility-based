@@ -98,7 +98,7 @@ class PerfectReluctantDocumentExpert(PredictingExpert):
         self.oracle.fit(x, y)
         return self
 
-    def label(self, query, y=None):
+    def label(self, query, y=None, **kwargs):
         data = query
         if isinstance(query, dict):
             data = query.bow
