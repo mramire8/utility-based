@@ -102,7 +102,7 @@ class ExperimentJobs(Experiment):
 
         seeds = np.arange(len(cv)) * 10 + 10
 
-        expert = exputil.get_expert(cfgutil.get_section_options(self.config, 'expert'), size=(len(self.data.train.data),self.data.train.sizes.max()))
+        expert = exputil.get_expert(cfgutil.get_section_options(self.config, 'expert'), size=(len(self.data.train.target),self.data.train.sizes.max()))
 
         expert.fit(self.data.train.bow, y=self.data.train.target, vct=self.vct)
 
@@ -192,7 +192,7 @@ class ExperimentJobs(Experiment):
                 query_index = [di for di, _ in query]
                 query_true_labels = pool.target[query_index]
 
-                labels = expert.label(self.get_query(pool,query), y=query_true_labels, size=pool.sizes[query_index])
+                labels = expert.label(self.get_query(pool,query), y=query_true_labels, size=pool.sizes[query_index], index=query)
 
                 # update pool and cost
                 pool, train = self.update_pool(pool, query, labels, train)

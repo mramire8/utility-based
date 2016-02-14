@@ -78,12 +78,8 @@ class NoisyReluctantExpert(PredictingExpert):
         # Get the conditional error, for accuracy probability
         scaled_ce = unc * self.get_scale_factor()
 
-        # Get size in number of sentences
-        sents = self.sent_detector.tokenize_sents(query.snippet)
-        size = [len(s) for s in sents]
-
         # Flip a coin for every instance
-        coin_flipped = [self._flip_coin(x, s) for x, s in zip(query.index, size)]
+        coin_flipped = [self._flip_coin(x, s) for x, s in index]
 
         for i, p in enumerate(prediction):
             if p is not None:  # If not neutral
