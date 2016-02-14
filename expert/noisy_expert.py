@@ -3,18 +3,20 @@ __author__ = 'maru'
 from experts import PredictingExpert
 import numpy as np
 import nltk
+from scipy.sparse import vstack
 
-class NoisyReluctantDocumentExpert(PredictingExpert):
+class NoisyReluctantExpert(PredictingExpert):
 
     def __init__(self, oracle, reluctant_threshold, factor=1., data_size=None, seed=43212):
-        super(NoisyReluctantDocumentExpert, self).__init__(oracle)
+        super(NoisyReluctantExpert, self).__init__(oracle)
         self.reluctant_threhold = reluctant_threshold
         self.rnd = np.random.RandomState(seed)
         self.scale_factor = factor
         self.coin = None
         if data_size is not None:
-            self.coin = self.rnd.random_sample((data_size, len(range(1,6))))
+            self.coin = self.rnd.random_sample(data_size)
         self.sent_detector = nltk.data.load('tokenizers/punkt/english.pickle')
+        self.neutral_value = 2
 
     def set_scale_factor(self, factor):
         self.scale_factor = factor
@@ -46,18 +48,25 @@ class NoisyReluctantDocumentExpert(PredictingExpert):
             coin = self.coin[x, y]
         return coin
 
-    def fit(self, X_text, y=None, vct=None):
-        sx = vct.transform(X_text)
-        self.oracle.fit(sx, y)
+    def fit(self, X, y=None, vct=None):
+        # sx = vct.transform(X_text)
+        self.oracle.fit(X, y)
         return self
 
     def label(self, query, y=None, index=None, size=None):
         data = query
-        if isinstance(query, dict):
-            data = query.bow
-        # text, target, index, snipet, bow
+        if hasattr(query, 'shape'):
+            data = query
+
         # Initizalize with all neutrals
-        prediction = np.array([None] * data.shape[0], dtype=object)
+        if isinstance(data, list):
+            n = len(data)
+        else:
+            n = data.shape[0]
+
+        data = vstack(data)
+
+        prediction = np.array([self.neutral_value] * n, dtype=object)
 
         # Compute the uncertainty of the oracle
         proba = self.oracle.predict_proba(data)

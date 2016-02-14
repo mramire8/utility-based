@@ -120,3 +120,51 @@ class JointCheat(UtilityBasedLearner):
         corrected = [[transform_label(p) for p in ps] for ps in probs]
 
         return corrected
+
+#######################################################################################################################
+class JointNoisyCheat(UtilityBasedLearner):
+    """docstring for Joint"""
+
+    def __init__(self, model, snippet_fn=None, utility_fn=None, minimax=-1, seed=1, snip_model=None):
+        super(JointNoisyCheat, self).__init__(model, snippet_fn=snippet_fn, utility_fn=utility_fn, seed=seed)
+        self.snippet_model = snip_model
+
+
+    def fit(self, data, train=[]):
+
+        """
+        fit an active learning strategy
+        :param data:
+        :param train_index:
+        :param snippets:
+        :return:
+        """
+        non_neutral = np.array(train.target) < 2
+        selected = np.array(train.index)[non_neutral]
+        x = data.bow[selected]
+        y = np.array(train.target)[non_neutral]
+        self.model.fit(x, y)
+
+        self.current_training = [i for i,n in zip(train.index, non_neutral) if n]
+        self.current_training_labels = y.tolist()
+
+        return self
+
+    def set_snippet_model(self, clf):
+        self.snippet_model = clf
+
+    def _get_snippet_probas(self, snippets):
+        def transform_label(p):
+            lbl = [0] * 3
+            if p.min() < .4:
+                lbl[p.argmax()] = p.max()
+                lbl[1-p.argmax()] = 1-p.max()
+            else:
+                lbl = np.array([0,0,1])
+            return np.array(lbl)
+
+        probs = [self.snippet_model.predict_proba(snip) for snip in snippets]
+
+        corrected = [[transform_label(p) for p in ps] for ps in probs]
+
+        return corrected
