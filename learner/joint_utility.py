@@ -125,6 +125,14 @@ class Joint(StructuredLearner):
         else:
             return self.loss_fn(clf, data, target)
 
+    @staticmethod
+    def _safe_fit(model, x, y):
+        if hasattr(model, "partial_fit") and False:
+            return model.partial_fit(x,y)
+        else:
+            return model.fit(x, y)
+
+
     def fit(self, data, train=[]):
 
         """
@@ -138,7 +146,9 @@ class Joint(StructuredLearner):
         selected = np.array(train.index)[non_neutral]
         x = data.bow[selected]
         y = np.array(train.target)[non_neutral]
-        self.model.fit(x, y)
+
+        self.model = self._safe_fit(self.model, x, y)
+            # self.model.fit(x, y)
 
         self.current_training = [i for i,n in zip(train.index, non_neutral) if n]
         self.current_training_labels = y.tolist()
@@ -147,7 +157,8 @@ class Joint(StructuredLearner):
         labels = []
         for l, s in zip(np.array(train.target), data.sizes[train.index]):
             labels.extend([l] * s)
-        self.snippet_model.fit(vstack(snippets), labels)
+
+        self.snippet_model = self._safe_fit(self.snippet_model, vstack(snippets), labels)
 
         return self
 

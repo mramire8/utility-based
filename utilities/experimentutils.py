@@ -113,16 +113,21 @@ def get_learner(learn_config, **kwargs):
     clf = get_classifier(cl_name, parameter=learn_config['parameter'])
     learner = Learner(clf)
 
+
+    # utlity document - snippet method
     if learn_config['type'] == 'utility-based':
         from learner.utility_based import UtilityBasedLearner
         learner = UtilityBasedLearner(clf, snippet_fn=None, utility_fn=None, seed=seed)
     elif learn_config['type'] == 'utility-firstk':
         from learner.utility_based import FirstK
         learner = FirstK(clf, snippet_fn=None, utility_fn=None, seed=seed)
+        raise ValueError("Oops, check this method first.")
     elif learn_config['type'] == 'utility-cheat':
         from learner.utility_based import JointCheat
         snp_model = kwargs['snip_model']
         learner = JointCheat(clf, snippet_fn=None, utility_fn=None, seed=seed, snip_model=snp_model)
+
+    # random documents - snippet method
     if learn_config['type'] == 'const-utility':
         from learner.sequential_utility import Sequential
         learner = Sequential(clf, snippet_fn=None, utility_fn=None, seed=seed)
@@ -159,7 +164,7 @@ def get_learner(learn_config, **kwargs):
 def get_expert(config, size=None):
 
     from expert.experts import PredictingExpert, PerfectReluctantDocumentExpert,\
-        TrueExpert, NoisyExpert, TrueReluctantExpert
+        TrueExpert, NoisyExpert, ReluctantPredictingExpert
     from expert.noisy_expert import NoisyReluctantExpert
 
     cl_name = config['model']
@@ -172,9 +177,6 @@ def get_expert(config, size=None):
     elif config['type'] == 'noisy':
         p = config['noise_p']
         expert = NoisyExpert(None, p)
-    elif config['type'] == 'truereluctant':  # reluctant based on p probability
-        p = config['neutral_p']
-        expert = TrueReluctantExpert(None, p)
     elif config['type'] == 'perfectreluctant': # reluctant based on unc threshold
         p = config['threshold']
         expert = PerfectReluctantDocumentExpert(clf, p)
@@ -182,6 +184,9 @@ def get_expert(config, size=None):
         p = config['threshold']
         args = {'factor': config['scale'], 'data_size': size}
         expert = NoisyReluctantExpert(clf, p, **args)
+    elif config['type'] == 'reluctantpredicting': # reluctant based on unc threshold, predicting based on clf
+        p = config['threshold']
+        expert = ReluctantPredictingExpert(clf, p)
     else:
         raise Exception("We don't know {} expert".format(config['type']))
 

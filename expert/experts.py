@@ -62,24 +62,32 @@ class PredictingExpert(BaseExpert):
         return self
 
 
-class ReluctantDocumentExpert(PredictingExpert):
+class ReluctantPredictingExpert(PredictingExpert):
 
     def __init__(self, oracle, reluctant_threshold, seed=43212):
-        super(ReluctantDocumentExpert, self).__init__(oracle)
+        super(ReluctantPredictingExpert, self).__init__(oracle)
         self.reluctant_threhold = reluctant_threshold
         self.rnd = np.random.RandomState(seed)
         self.neutral_value = 2
 
-    def fit(self, X_text, y=None, vct=None):
-        sx = vct.transform(X_text)
-        self.oracle.fit(sx, y)
+    def fit(self, X, y=None, vct=None):
+        self.oracle.fit(X, y)
         return self
 
-    def label(self, data, y=None):
-        prediction = np.array([self.neutral_value] * data.shape[0], dtype=object)
+    def label(self, query, **kwargs):#label(self, data, y=None):
+
+        data = query
+        if hasattr(query, 'shape'):
+            data = query
+            n = data.shape[0]
+        else:
+            n = len(data)
+            data = vstack(data)
+
+        prediction = np.array([self.neutral_value] * n, dtype=object)
         proba = self.oracle.predict_proba(data)
         pred = self.oracle.predict(data)
-        unc = proba.min(axis=1)
+        unc = 1 - proba.max(axis=1)
         prediction[unc < self.reluctant_threhold] = pred[unc < self.reluctant_threhold]
 
         return prediction
