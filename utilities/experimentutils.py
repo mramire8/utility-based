@@ -1,11 +1,9 @@
 from sklearn.datasets import base as bunch
-# from learner.strategy import Joint
-from learner.joint_utility import Joint
 import numpy as np
 from nltk import RegexpTokenizer
 from nltk.stem import PorterStemmer
 from sklearn.utils import safe_indexing
-
+import re
 
 def get_query(data, sizes, query):
 
@@ -67,6 +65,9 @@ def get_vectorizer(config):
         vocab = [v.strip() for v in vocab]
         return TfidfVectorizer(encoding='ISO-8859-1', min_df=5, max_df=1.0, binary=False, ngram_range=(1, 1),
                                vocabulary=vocab)
+    elif vectorizer == 'counts':
+        return CountVectorizer(encoding='ISO-8859-1', min_df=5, max_df=1.0, ngram_range=(1,1),
+                      token_pattern=re.compile(r'(?u)\b\w+\b'))
     elif vectorizer == 'bow':
         from datautils import StemTokenizer
         return CountVectorizer(encoding='ISO-8859-1', min_df=5, max_df=1.0, binary=True, ngram_range=(1, 3),
