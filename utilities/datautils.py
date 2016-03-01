@@ -423,10 +423,8 @@ def load_arxiv(path, category=None, subset="all", shuffle=True, rnd=2356, percen
     """
     from sklearn.cross_validation import ShuffleSplit
 
-    categories = {'ml': ['cs.AI', 'cs.LG'],
-                  'physics': ['physics.comp-ph', 'physics.data-an'],
-                  'db': ['cs.DB', 'cs.IR']
-    }
+    categories = dict(ml=['cs.AI', 'cs.LG'], db=['cs.DB', 'cs.IR'],
+                      ne=['cs.NE', 'cs.SI'])
 
     cat = None
     if category is not None:
@@ -461,7 +459,7 @@ def load_arxiv(path, category=None, subset="all", shuffle=True, rnd=2356, percen
         data.train.data = data_lst
         data.test.data = np.array(data.test.data, dtype=object)
 
-    data = minimum_size(data)
+    # data = minimum_size(data)
     return data
 
 
