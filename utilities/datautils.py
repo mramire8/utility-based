@@ -423,7 +423,7 @@ def load_arxiv(path, category=None, subset="all", shuffle=True, rnd=2356, percen
     """
     from sklearn.cross_validation import ShuffleSplit
 
-    categories = dict(ml=['cs.AI', 'cs.LG'], db=['cs.DB', 'cs.IR'],
+    categories = dict(ml=['cs.AI', 'stat.ML'], db=['cs.DB', 'cs.IR'],
                       ne=['cs.NE', 'cs.SI'])
 
     cat = None
