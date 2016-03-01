@@ -229,6 +229,7 @@ class Experiment(object):
         # update initial training data
         train.index = initial
         train.target = pool.target[initial].tolist()
+        train.snip = [None] * len(initial)
         if bt_method == 'amt-tfe':
             train.target = pool.alltarget[initial].tolist()
         else:
@@ -300,6 +301,7 @@ class Experiment(object):
             pool.remaining.remove(q[0])
             train.index.append(q[0])
             train.target.append(l)
+            train.snip.append(q[1])
 
         return pool, train
 
@@ -341,7 +343,7 @@ class Experiment(object):
         results = self._start_results()
 
         ## keep track of current training
-        train = bunch.Bunch(index=[], target=[])
+        train = bunch.Bunch(index=[], target=[], snip=[])
         query = []
         labels = []
         query_true_labels = []

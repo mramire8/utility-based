@@ -132,6 +132,45 @@ class Joint(StructuredLearner):
         else:
             return model.fit(x, y)
 
+    def _get_query_snippets(self, data, candidates):
+
+        if hasattr(data.snippets, "shape"):
+            ranges = np.cumsum(data.sizes)
+            queries = []
+            targets = []
+            for di, si, ti in zip(candidates.index, candidates.snip, candidates.target):
+                if si is not None:
+                    queries.append(data.snippets[0 if di == 0 else ranges[di-1]:ranges[di]][si])
+                    targets.append(ti)
+                else:
+                    snippets = data.snippets[0 if di == 0 else ranges[di-1]:ranges[di]]
+                    queries.extend(snippets)
+                    targets.extend([ti] * len(snippets))
+        else:
+            # queries = [data.snippets[d][np.ix_([s])] for d,s in zip(candidates.index, candidates.snip)]
+            queries = []
+            targets = []
+            for di, si, ti in zip(candidates.index, candidates.snip, candidates.target):
+                if si is not None:
+                    queries.append(data.snippets[di][si])
+                    targets.append(ti)
+                else:
+                    snippets = data.snippets[di]
+                    queries.append(snippets)
+                    if hasattr(snippets, "shape"):
+                        n = snippets.shape[0]
+                    else:
+                        n = len(snippets)
+                    targets.extend([ti] * n)
+
+        return queries, targets
+
+
+
+        # return snips
+
+    def _get_query_labels(self, target, candidates):
+        pass
 
     def fit(self, data, train=[]):
 
@@ -153,10 +192,10 @@ class Joint(StructuredLearner):
         self.current_training = [i for i,n in zip(train.index, non_neutral) if n]
         self.current_training_labels = y.tolist()
 
-        snippets = self._get_snippets(data, train.index)
-        labels = []
-        for l, s in zip(np.array(train.target), data.sizes[train.index]):
-            labels.extend([l] * s)
+        snippets, labels = self._get_query_snippets(data, train)
+        # labels = []
+        # for l, s in zip(np.array(train.target), data.sizes[train.index]):
+        #     labels.extend([l] * s)
 
         self.snippet_model = self._safe_fit(self.snippet_model, vstack(snippets), labels)
 
