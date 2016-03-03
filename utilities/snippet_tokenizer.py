@@ -159,7 +159,7 @@ class WindowSnippetTokenizer(SnippetTokenizer):
         n = min(len(sents[:30])+1, k[1]+1)
 
         if min(n, k[0]) > len(sents[:30]):
-            return range(0, len(sents[:30]))
+            return [range(0, len(sents[:30]))]
 
         sentences = np.array(sents)
         for i in range(k[0],n):
