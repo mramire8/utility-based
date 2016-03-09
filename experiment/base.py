@@ -248,9 +248,10 @@ class Experiment(object):
     def evaluate(self, learner, test):
         prediction = learner.predict(test.bow)
         pred_proba = learner.predict_proba(test.bow)
+        util = np.sum([p[t] for p,t in zip(pred_proba, test.target)])
         accu = metrics.accuracy_score(test.target, prediction)
         auc = metrics.roc_auc_score(test.target, pred_proba[:, 1])
-        return {'auc': auc, 'accuracy': accu}
+        return {'auc': auc, 'accuracy': accu, 'util':util}
 
     def evaluate_oracle(self, true_labels, predictions, labels=None):
         cm = np.zeros((2,2))
@@ -265,8 +266,12 @@ class Experiment(object):
 
     def update_run_results(self, results, step, oracle, cost, iteration, trial=None):
 
-        results['accuracy'][cost].append(step['accuracy'])
-        results['auc'][cost].append(step['auc'])
+        # results['accuracy'][cost].append(step['accuracy'])
+        # results['auc'][cost].append(step['auc'])
+
+        for k,v in step.items():
+            results[k][cost].append(v)
+
         try:
             results['ora_accu'][cost].append(oracle)
         except Exception:
@@ -274,8 +279,9 @@ class Experiment(object):
         oracle_text = ""
         if self.verbose:
             if iteration == 0:
-                print "\nIT\tACCU\tAUC\tT0\tF1\tF0\tT1"
-            print "{3}-{4}\t{0:0.2f}\t{1:.3f}\t{2:.3f}\t".format(cost, step['accuracy'], step['auc'], iteration, trial),
+                print "\nIT\tACCU\tAUC\tUTIL\tT0\tF1\tF0\tT1"
+            print "{4}-{5}\t{0:0.2f}\t{1:.3f}\t{2:.3f}\t{3:.3f}\t".format(cost, step['accuracy'], step['auc'],
+                                                                          step['util'], iteration, trial),
             try:
                 print "\t".join(["{0:.3f}".format(x) for x in np.reshape(oracle, 4)])
                 oracle_text = "\t".join(["{0:.3f}".format(x) for x in np.reshape(oracle, 4)])
@@ -290,8 +296,9 @@ class Experiment(object):
                     output_name = self.output + "/" + self.get_name()  + "-accu-all.txt"
                 with open(output_name, "a") as f:
                     if iteration == 0:
-                       f.write("IT\tACCU\tAUC\tT0\tF1\tF0\tT1\n")
-                    to_print = "{0:0.2f}\t{1:.3f}\t{2:.3f}\t{3}\n".format(cost, step['accuracy'], step['auc'],oracle_text)
+                       f.write("IT\tACCU\tAUC\tUTIL\tT0\tF1\tF0\tT1\n")
+                    to_print = "{0:0.2f}\t{1:.3f}\t{2:.3f}\t{3:.3f}\t{4}\n".format(cost, step['accuracy'], step['auc'],
+                                                                                   step['util'],oracle_text)
                     f.write(to_print)
 
         return results
@@ -390,6 +397,7 @@ class Experiment(object):
         r['accuracy'] = defaultdict(lambda: [])
         r['auc'] = defaultdict(lambda: [])
         r['ora_accu'] = defaultdict(lambda: [])
+        r['util'] = defaultdict(lambda: [])
         return r
 
     def _get_iteration(self, iteration):
@@ -453,20 +461,21 @@ class Experiment(object):
 
         accu = []
         auc = []
+        util = []
         ora = []
         cost = []
         for tr in results:
             c, p, s, n = self._get_iteration(tr['accuracy'])
-            # c, p = self._extrapolate(p,c,self.cost_model[self.cost_base],self.trials)
             c, p = self._extrapolate(p, c, self.costfn(self.cost_base, cost_model=self.cost_model), self.trials)
             accu.append(p)
+            c, p, s, n = self._get_iteration(tr['util'])
+            c, p = self._extrapolate(p, c, self.costfn(self.cost_base, cost_model=self.cost_model), self.trials)
+            util.append(p)
             cost.append(c)
             c, p, s, n = self._get_iteration(tr['auc'])
-            # c, p = self._extrapolate(p,c,self.cost_model[self.cost_base],self.trials)
             c, p = self._extrapolate(p, c, self.costfn(self.cost_base, cost_model=self.cost_model), self.trials)
             auc.append(p)
             c, p, s, n = self._get_cm_iteration(tr['ora_accu'])
-            # c, p = self._extrapolate(p,c,self.cost_model[self.cost_base],self.trials)
             c, p = self._extrapolate(p, c, self.costfn(self.cost_base, cost_model=self.cost_model), self.trials)
             ora.append(p)
         min_x = min([len(m) for m in cost])
@@ -475,6 +484,9 @@ class Experiment(object):
         c = np.mean([a[:min_x] for a in cost], axis=0)
         s = np.std([a[:min_x] for a in accu], axis=0)
         exputil.print_file(c, p, s, open(output_name + "-accu.txt", "w"))
+        p = np.mean([a[:min_x] for a in util], axis=0)
+        s = np.std([a[:min_x] for a in util], axis=0)
+        exputil.print_file(c, p, s, open(output_name + "-util.txt", "w"))
         p = np.mean([a[:min_x] for a in auc], axis=0)
         s = np.std([a[:min_x] for a in auc], axis=0)
         exputil.print_file(c, p, s, open(output_name + "-auc.txt", "w"))

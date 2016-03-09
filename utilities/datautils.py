@@ -2,6 +2,9 @@ from sklearn.datasets import load_files
 from sklearn.datasets import fetch_20newsgroups
 from sklearn.datasets import base as bunch
 import numpy as np
+import pickle
+import gzip
+from sklearn.cross_validation import ShuffleSplit
 
 
 class StemTokenizer(object):
@@ -421,7 +424,7 @@ def load_arxiv(path, category=None, subset="all", shuffle=True, rnd=2356, percen
     :param vct: vectorizer
     :return: :raise ValueError:
     """
-    from sklearn.cross_validation import ShuffleSplit
+
 
     categories = dict(ml=['cs.AI', 'stat.ML'], db=['cs.DB', 'cs.IR'],
                       ne=['cs.NE', 'cs.SI'])
@@ -462,9 +465,67 @@ def load_arxiv(path, category=None, subset="all", shuffle=True, rnd=2356, percen
     # data = minimum_size(data)
     return data
 
+def load_amazon(path, shuffle=True, rnd=2356, percent=.5):
+    """
+    load text files from Aviation-auto dataset from folders to memory. It will return a 25-75 percent train test split
+    :param path: path of the root directory of the data
+    :param subset: what data will be loaded, train or test or all
+    :param shuffle:
+    :param rnd: random seed value
+    :param vct: vectorizer
+    :return: :raise ValueError:
+    """
 
-def load_dataset(name, path, categories=None, rnd=2356, shuffle=True, percent=.5, keep_subject=False, labels=None):
     data = bunch.Bunch()
+
+    try:
+        targets = np.array(pickle.load(open(path + "/amazon_sampled_target.pkl", 'rb')))
+        text = np.array([d.decode('latin1') for d in gzip.open(path + "/amazon_sampled_text.txt.gz", 'rt').readlines()])
+    except Exception:
+        raise ValueError("Oops, We cannot load the data")
+
+    indices = ShuffleSplit(len(text), n_iter=1, test_size=percent, random_state=rnd)
+    for train_ind, test_ind in indices:
+        data = bunch.Bunch(train=bunch.Bunch(data=text[train_ind], target=targets[train_ind],
+                                             target_names=['neg','pos']),
+                           test=bunch.Bunch(data=text[test_ind], target=targets[test_ind],
+                                            target_names=['neg','pos']))
+
+    if shuffle:
+        random_state = np.random.RandomState(rnd)
+        indices = np.arange(data.train.target.shape[0])
+        random_state.shuffle(indices)
+        data.train.target = data.train.target[indices]
+        data.train.data = data.train.data[indices]
+
+        data.test.data = np.array(data.test.data, dtype=object)
+
+    return data
+
+
+# def load_dataset(name, path, categories=None, rnd=2356, shuffle=True, percent=.5, keep_subject=False, labels=None):
+def load_dataset(name, path, **kwargs):
+    data = bunch.Bunch()
+    categories=None
+    rnd=2356
+    shuffle=True
+    percent=.5
+    keep_subject=False
+    labels=None
+
+    if 'categories' in kwargs.keys():
+        categories = kwargs['categories']
+    if 'rnd' in kwargs.keys():
+        rnd = kwargs['rnd']
+    if 'shuffle' in kwargs.keys():
+        shuffle = kwargs['shuffle']
+    if 'percent' in kwargs.keys():
+        percent = kwargs['percent']
+    if 'keep_subject' in kwargs.keys():
+        keep_subject = kwargs['keep_subject']
+    if 'labels' in kwargs.keys():
+        labels = kwargs['labels']
+
 
     if "imdb" == name:
         ########## IMDB MOVIE REVIEWS ###########
@@ -475,6 +536,9 @@ def load_dataset(name, path, categories=None, rnd=2356, shuffle=True, percent=.5
     elif "arxiv" in name:
         ##########  arxiv dataset ######
         data = load_arxiv(path, category=categories, subset='all', shuffle=shuffle, rnd=rnd, percent=percent)
+    elif "amazon" in name:
+        ##########  arxiv dataset ######
+        data = load_amazon(path, shuffle=shuffle, rnd=rnd, percent=percent)
     else:
         raise Exception("We do not know {} dataset".format(name.upper()))
 
