@@ -302,13 +302,13 @@ class Experiment(object):
                     output_name = self.output + "/" + self.get_name()  + "-accu-all.txt"
                 with open(output_name, "a") as f:
                     if iteration == 0:
-                        f.write("IT\tACCU\tAUC\tUTIL\tREV\tT0\tF1\tF0\tT1\tSIZES\n")
+                        f.write("IT\tACCU\tAUC\tREV\tUTIL\tT0\tF1\tF0\tT1\tSIZES\n")
                     # to_print = "{0:0.2f}\t{1:.3f}\t{2:.3f}\t{3:.3f}\t{4}\n".format(cost, step['accuracy'], step['auc'],
                     #                                                                step['util'],oracle_text)
-                    formatstr = "{:.2f}\t" * (len(step.keys()) + 1 )
-                    to_print = formatstr.format(cost, *step.values())
-                    to_print += ("{}\t" * len(query_size)).format(*query_size)
-                    to_print += "{}\n".format(oracle_text)
+                    formatstr = "{:.2f}\t" * (len(step.keys()) + 1 )  # performance measures
+                    to_print = formatstr.format(cost, *[step[k] for k in sorted(step)])  #
+                    to_print += ("{}\t" * len(query_size)).format(*query_size)  # query ssize
+                    to_print += "{}\n".format(oracle_text)   # oracle
                     f.write(to_print)
 
         return results
