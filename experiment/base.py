@@ -264,7 +264,7 @@ class Experiment(object):
             pass
         return cm
 
-    def update_run_results(self, results, step, oracle, cost, iteration, trial=None):
+    def update_run_results(self, results, step, oracle, cost, iteration, query_size=None, trial=None):
 
         # results['accuracy'][cost].append(step['accuracy'])
         # results['auc'][cost].append(step['auc'])
@@ -276,7 +276,9 @@ class Experiment(object):
             results['ora_accu'][cost].append(oracle)
         except Exception:
             pass
+
         oracle_text = ""
+
         if self.verbose:
             if iteration == 0:
                 print "\nIT\tACCU\tAUC\tUTIL\tT0\tF1\tF0\tT1"
@@ -296,9 +298,12 @@ class Experiment(object):
                     output_name = self.output + "/" + self.get_name()  + "-accu-all.txt"
                 with open(output_name, "a") as f:
                     if iteration == 0:
-                       f.write("IT\tACCU\tAUC\tUTIL\tT0\tF1\tF0\tT1\n")
-                    to_print = "{0:0.2f}\t{1:.3f}\t{2:.3f}\t{3:.3f}\t{4}\n".format(cost, step['accuracy'], step['auc'],
-                                                                                   step['util'],oracle_text)
+                        f.write("IT\tACCU\tAUC\tUTIL\tT0\tF1\tF0\tT1\n")
+                    # to_print = "{0:0.2f}\t{1:.3f}\t{2:.3f}\t{3:.3f}\t{4}\n".format(cost, step['accuracy'], step['auc'],
+                    #                                                                step['util'],oracle_text)
+                    formatstr = "{:.2f}\t" * (len(step.keys()) + 1 + len(query_size))
+                    to_print = formatstr.format(cost, step['accuracy'], step['auc'], step['util'],*query_size)
+                    to_print += "{}\n".format(oracle_text)
                     f.write(to_print)
 
         return results

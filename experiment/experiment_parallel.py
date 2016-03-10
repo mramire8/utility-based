@@ -177,7 +177,7 @@ class ExperimentJobs(Experiment):
         labels = []
         query_true_labels = []
         classes = np.unique(pool.target)
-
+        query_size = [0] * self.step
         print "Starting trial %s" % (t)
 
         while current_cost <= budget and iteration <= self.max_iteration and len(pool.remaining) > self.step:
@@ -191,6 +191,7 @@ class ExperimentJobs(Experiment):
                 query = learner.next_query(pool, self.step)
                 query_index = [di for di, _ in query]
                 query_true_labels = pool.target[query_index]
+                query_size = np.exp((np.array([pool.snippet_cost[i][j] for i,j in query])-self.cost_model['intercept'])/self.cost_model['slope'])
 
                 labels = expert.label(self.get_query(pool,query), y=query_true_labels,
                                       size=pool.sizes[query_index], index=query)
@@ -212,7 +213,8 @@ class ExperimentJobs(Experiment):
             step_oracle = self.evaluate_oracle(query_true_labels, labels, labels=classes)
 
             # record results
-            results = self.update_run_results(results, step_results, step_oracle, current_cost,iteration, trial=t)
+            results = self.update_run_results(results, step_results, step_oracle, current_cost,iteration,
+                                              query_size=query_size, trial=t)
 
             iteration += 1
 
