@@ -36,6 +36,10 @@ class Joint(StructuredLearner):
 
         return subpool
 
+    def _select_revisit(self, queries):
+        reorder = self.rnd_state.permutation(len(queries))
+        return [queries[i][0] for i in reorder[:50]]
+
     def next_query(self, pool, step):
 
         """
@@ -46,8 +50,12 @@ class Joint(StructuredLearner):
         """
         subpool = self._subsample_pool(pool.remaining)
 
-        util = self.expected_utility(pool, subpool)  # util list of (utility_score, snipet index of max)
+        util1 = self.expected_utility(pool, subpool)  # util list of (utility_score, snipet index of max)
+        revisit = self._select_revisit(pool.revisit)
+        rev_util = self.expected_utility(pool, revisit)
 
+        util = util1 + rev_util
+        subpool += revisit
         if self.minimax > 0:  ## minimizing
             max_util = [np.argmin(p) for p in util]  # snippet per document with max/min utility
         else:
@@ -99,7 +107,10 @@ class Joint(StructuredLearner):
             y = tra_y + [lbl]
             clf = copy(self.model)
             clf.fit(data.bow[x], y)
-            res = self.evaluation_on_validation(clf, data.validation_set.bow[data.validation], data.validation_set.target[data.validation])
+            # res = self.evaluation_on_validation(clf, data.validation_set.bow[data.validation], data.validation_set.target[data.validation])
+            if data.validation_set.bow[data.validation].shape[0] != len(data.validation_set.target):
+                raise Exception("Oops, the validation data has problems")
+            res = self.evaluation_on_validation(clf, data.validation_set.bow[data.validation], np.array(data.validation_set.target))
             return (i, lbl, res)
         else:
             # utility of neutral label
@@ -114,7 +125,7 @@ class Joint(StructuredLearner):
             clf.fit(X_train, y_train)
             predictions = clf.predict_proba(X_test)
             scores.extend([predictions[i][j] for i,j in enumerate(y_test)])
-        return np.mean(scores)
+        return np.sum(scores)
 
     def evaluation_on_validation(self, clf, data, target):
         from sklearn.metrics import fbeta_score, make_scorer
@@ -126,9 +137,12 @@ class Joint(StructuredLearner):
             return self.loss_fn(clf, data, target)
 
     @staticmethod
-    def _safe_fit(model, x, y):
+    def _safe_fit(model, x, y, labels=None):
+        lbl = [0,1]
+        if labels is not None:
+            lbl = labels
         if hasattr(model, "partial_fit") and False:
-            return model.partial_fit(x,y)
+            return model.partial_fit(x,y, classes=lbl)
         else:
             return model.fit(x, y)
 
@@ -197,7 +211,7 @@ class Joint(StructuredLearner):
         # for l, s in zip(np.array(train.target), data.sizes[train.index]):
         #     labels.extend([l] * s)
 
-        self.snippet_model = self._safe_fit(self.snippet_model, vstack(snippets), labels)
+        self.snippet_model = self._safe_fit(self.snippet_model, vstack(snippets), labels, labels=[0,1,2])
 
         return self
 

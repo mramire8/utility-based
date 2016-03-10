@@ -85,6 +85,7 @@ class ExperimentJobs(Experiment):
         train = super(ExperimentJobs, self).bootstrap(pool, bt, train, bt_method=bt_method)
         if self.validation_set == 'train':
             pool.validation = train.index
+            pool.validation_set.target = train.target
         return train
 
     def start(self, n_jobs=1, pre_dispatch='2*n_jobs'):
@@ -139,14 +140,14 @@ class ExperimentJobs(Experiment):
         remaining = deque(rnd_set)
 
         if self.validation_set == 'test':
-            pool.validation_set = test
+            pool.validation_set = bunch.Bunch(bow=test.bow,target=test.target)#test
             pool.validation = test_idx if len(test_idx) >0 else range(test.bow.shape[0])
             pool.remaining = remaining
         elif self.validation_set == 'heldout':
-            pool.validation_set = pool
             pool.remaining, pool.validation = self.split_validation(remaining)
+            pool.validation_set = bunch.Bunch(bow=pool.bow[pool.validation], target=pool.target[pool.validation])
         elif self.validation_set == 'train':
-            pool.validation_set = pool
+            pool.validation_set = bunch.Bunch(bow=pool.bow,target=[])
             pool.remaining = remaining
             pool.validation = None
         else:
@@ -157,7 +158,9 @@ class ExperimentJobs(Experiment):
     def update_pool(self, pool, query, labels, train):
         super(ExperimentJobs, self).update_pool(pool, query, labels, train)
         if self.validation_set == 'train':
-            pool.validation = train.index
+            pool.validation = [i for i, t in zip(train.index, train.target) if t < 2]
+            pool.validation_set.target = [t for t in train.target if t < 2]
+        pool.revisit.extend([(q[0], q[1], l) for q, l in zip(query, labels)])
 
         return pool, train
 

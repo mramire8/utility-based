@@ -25,6 +25,7 @@ def sample_data(data, train_idx, test_idx):
     sample.train.bow = safe_indexing(data.train.bow,train_idx)
     sample.train.remaining = []
     sample.train.validation = []
+    sample.train.revisit = []
 
     sample.train.snippets=safe_indexing(data.train.snippets,train_idx)
     sample.train.sizes=safe_indexing(data.train.sizes,train_idx)
@@ -129,7 +130,7 @@ def get_learner(learn_config, **kwargs):
         learner = JointCheat(clf, snippet_fn=None, utility_fn=None, seed=seed, snip_model=snp_model)
 
     # random documents - snippet method
-    if learn_config['type'] == 'const-utility':
+    elif learn_config['type'] == 'const-utility':
         from learner.sequential_utility import Sequential
         learner = Sequential(clf, snippet_fn=None, utility_fn=None, seed=seed)
     elif learn_config['type'] == 'const-firstk':

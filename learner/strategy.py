@@ -57,7 +57,7 @@ class ActiveLearner(Learner):
         super(ActiveLearner, self).__init__(model, seed=seed)
         self.utility = self.utility_base
         self.rnd_state = np.random.RandomState(self.seed)
-        self.subsample = 250
+        self.subsample = 100
 
     def utility_base(self, x):
         raise Exception("We need a utility function")
