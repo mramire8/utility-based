@@ -55,7 +55,11 @@ class Joint(StructuredLearner):
         rev_util = self.expected_utility(pool, revisit)
 
         util = util1 + rev_util
+
         subpool += revisit
+
+
+
         if self.minimax > 0:  ## minimizing
             max_util = [np.argmin(p) for p in util]  # snippet per document with max/min utility
         else:
@@ -63,9 +67,9 @@ class Joint(StructuredLearner):
 
         order = np.argsort([util[i][u] for i, u in enumerate(max_util)])[::self.minimax]  # document with snippet utlity max/min
 
-        index = [(subpool[i], max_util[i]) for i in order[:step]]
-
-        return index
+        # index = [(subpool[i], max_util[i]) for i in order[:step]]
+        index = [a for a in [(subpool[i], max_util[i]) for i in order] if a not in pool.revisit]
+        return index[:step]
 
     def expected_utility(self, data, candidates):
 

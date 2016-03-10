@@ -160,7 +160,8 @@ class ExperimentJobs(Experiment):
         if self.validation_set == 'train':
             pool.validation = [i for i, t in zip(train.index, train.target) if t < 2]
             pool.validation_set.target = [t for t in train.target if t < 2]
-        pool.revisit.extend([(q[0], q[1], l) for q, l in zip(query, labels)])
+        # pool.revisit.extend([(q[0], q[1], l) for q, l in zip(query, labels)])
+        pool.revisit.extend(query)
 
         return pool, train
 
@@ -210,7 +211,7 @@ class ExperimentJobs(Experiment):
                     self._debug(learner, expert, query)
 
             # evaluate student
-            step_results = self.evaluate(learner, test)
+            step_results = self.evaluate(learner, test, query)
 
             # evalutate oracle
             step_oracle = self.evaluate_oracle(query_true_labels, labels, labels=classes)

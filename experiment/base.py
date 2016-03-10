@@ -16,6 +16,8 @@ from learner.strategy import BootstrapFromEach
 from sklearn.datasets import base as bunch
 from time import time
 from sklearn.utils import safe_indexing
+from collections import Counter
+
 
 class Experiment(object):
     """Main experiment class to run according to configuration"""
@@ -245,13 +247,15 @@ class Experiment(object):
             cost += pool.snippet_cost[di][si]
         return current_cost + cost
 
-    def evaluate(self, learner, test):
+    def evaluate(self, learner, test, query):
         prediction = learner.predict(test.bow)
         pred_proba = learner.predict_proba(test.bow)
         util = np.sum([p[t] for p,t in zip(pred_proba, test.target)])
         accu = metrics.accuracy_score(test.target, prediction)
         auc = metrics.roc_auc_score(test.target, pred_proba[:, 1])
-        return {'auc': auc, 'accuracy': accu, 'util':util}
+        rep = Counter([q[0] for q in query])
+        reps = sum([v-1 for v in rep.values() if v > 1])
+        return {'auc': auc, 'accuracy': accu, 'util':util, 'revisit':reps}
 
     def evaluate_oracle(self, true_labels, predictions, labels=None):
         cm = np.zeros((2,2))
@@ -298,11 +302,12 @@ class Experiment(object):
                     output_name = self.output + "/" + self.get_name()  + "-accu-all.txt"
                 with open(output_name, "a") as f:
                     if iteration == 0:
-                        f.write("IT\tACCU\tAUC\tUTIL\tT0\tF1\tF0\tT1\n")
+                        f.write("IT\tACCU\tAUC\tUTIL\tREV\tT0\tF1\tF0\tT1\tSIZES\n")
                     # to_print = "{0:0.2f}\t{1:.3f}\t{2:.3f}\t{3:.3f}\t{4}\n".format(cost, step['accuracy'], step['auc'],
                     #                                                                step['util'],oracle_text)
-                    formatstr = "{:.2f}\t" * (len(step.keys()) + 1 + len(query_size))
-                    to_print = formatstr.format(cost, step['accuracy'], step['auc'], step['util'],*query_size)
+                    formatstr = "{:.2f}\t" * (len(step.keys()) + 1 )
+                    to_print = formatstr.format(cost, *step.values())
+                    to_print += ("{}\t" * len(query_size)).format(*query_size)
                     to_print += "{}\n".format(oracle_text)
                     f.write(to_print)
 
@@ -310,10 +315,15 @@ class Experiment(object):
 
     def update_pool(self, pool, query, labels, train):
         for q, l in zip(query, labels):
-            pool.remaining.remove(q[0])
-            train.index.append(q[0])
-            train.target.append(l)
-            train.snip.append(q[1])
+            if q[0] not in train.index:
+                pool.remaining.remove(q[0])
+                train.index.append(q[0])
+                train.target.append(l)
+                train.snip.append(q[1])
+            else:
+                loc = train.index.index(q[0])
+                train.target[loc] = l
+                train.snip[loc] = q[1]
 
         return pool, train
 
@@ -403,6 +413,7 @@ class Experiment(object):
         r['auc'] = defaultdict(lambda: [])
         r['ora_accu'] = defaultdict(lambda: [])
         r['util'] = defaultdict(lambda: [])
+        r['revisit'] = defaultdict(lambda: [])
         return r
 
     def _get_iteration(self, iteration):
