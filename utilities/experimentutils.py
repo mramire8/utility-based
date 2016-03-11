@@ -4,6 +4,7 @@ from nltk import RegexpTokenizer
 from nltk.stem import PorterStemmer
 from sklearn.utils import safe_indexing
 import re
+from datautils import StemTokenizer
 
 def get_query(data, sizes, query):
 
@@ -70,7 +71,7 @@ def get_vectorizer(config):
         return CountVectorizer(encoding='ISO-8859-1', min_df=5, max_df=1.0, binary=True, ngram_range=(1,1),
                       token_pattern=re.compile(r'(?u)\b\w+\b'), tokenizer=StemTokenizer())
     elif vectorizer == 'bow':
-        from datautils import StemTokenizer
+
         return CountVectorizer(encoding='ISO-8859-1', min_df=5, max_df=1.0, binary=True, ngram_range=(1, 3),
                       token_pattern='\\b\\w+\\b', tokenizer=StemTokenizer())
     else:
