@@ -5,7 +5,7 @@ import numpy as np
 import pickle
 import gzip
 from sklearn.cross_validation import ShuffleSplit
-
+from os.path import isfile
 
 class StemTokenizer(object):
     def __init__(self):
@@ -479,10 +479,15 @@ def load_amazon(path, shuffle=True, rnd=2356, percent=.5):
     data = bunch.Bunch()
 
     try:
-        targets = np.array(pickle.load(open(path + "/amazon_sampled_target.pkl", 'rb')))
-        text = np.array([d.decode('latin1') for d in gzip.open(path + "/amazon_sampled_text.txt.gz", 'rt').readlines()])
-    except Exception:
-        raise ValueError("Oops, We cannot load the data")
+        if isfile(path + "/amazon_sampled_target.pkl") and isfile(path + "/amazon_sampled_text.txt.gz"):
+            targets = np.array(pickle.load(open(path + "/amazon_sampled_target.pkl", 'rb')))
+            # text = np.array([d.decode('latin1') for d in gzip.open(path + "/amazon_sampled_text.txt.gz", 'rt').readlines()])
+            with gzip.open(path + "/amazon_sampled_text.txt.gz", 'r') as f:
+                text = np.array([line for line in f])
+        else:
+            raise IOError("Oops, one of the files is not here %s" % path)
+    except Exception as excp:
+        raise ValueError("Oops, We cannot load the data, something happend")
 
     indices = ShuffleSplit(len(text), n_iter=1, test_size=percent, random_state=rnd)
     for train_ind, test_ind in indices:
