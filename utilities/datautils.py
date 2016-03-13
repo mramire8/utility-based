@@ -483,7 +483,7 @@ def load_amazon(path, shuffle=True, rnd=2356, percent=.5):
             targets = np.array(pickle.load(open(path + "/amazon_sampled_target.pkl", 'rb')))
             # text = np.array([d.decode('latin1') for d in gzip.open(path + "/amazon_sampled_text.txt.gz", 'rt').readlines()])
             with gzip.open(path + "/amazon_sampled_text.txt.gz", 'r') as f:
-                text = np.array([line for line in f])
+                text = np.array([line.decode('latin1') for line in f])
         else:
             raise IOError("Oops, one of the files is not here %s" % path)
     except Exception as excp:
