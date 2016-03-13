@@ -6,6 +6,10 @@ import pickle
 import gzip
 from sklearn.cross_validation import ShuffleSplit
 from os.path import isfile
+import codecs
+import json
+from zipfile import ZipFile
+
 
 class StemTokenizer(object):
     def __init__(self):
@@ -302,41 +306,27 @@ def user_to_doc(users, *args):
     return user_id, user_names, timeline
 
 
-def bunch_users(class1, class2, lowercase, collapse_urls, collapse_mentions, rnd, class_name=None):
-    labels = None
-    if labels is None:
-        labels = [0, 1]
-
-    user_id, user_names, timeline = user_to_doc(class1, lowercase, collapse_urls, collapse_mentions)
-    user_id2, user_names2, timeline2 = user_to_doc(class2, lowercase, collapse_urls, collapse_mentions)
-    target = [labels[0]] * len(user_id)
-    user_id.extend(user_id2)
-    user_names.extend(user_names2)
-    timeline.extend(timeline2)
-    target.extend([labels[1]] * len(user_id2))
-    user_text = ["######".join(t) for t in timeline]
-    data = bunch.Bunch(data=user_text, target=target, user_id=user_id,
-                       user_name=user_names, user_timeline=timeline)
-
-    random_state = np.random.RandomState(rnd)
-
-    indices = np.arange(len(data.target))
-    random_state.shuffle(indices)
-    data.target = np.array(data.target)[indices]
-    data_lst = np.array(data.data, dtype=object)
-    data_lst = data_lst[indices]
-    data.data = data_lst
-    data.user_id = np.array(data.user_id)[indices]
-    data.user_name = np.array(data.user_name)[indices]
-    data.user_timeline = np.array(data.user_timeline)[indices]
-    data.target_names = class_name
-    return data
-
-
 def get_date(date_str):
     import datetime
 
     return datetime.datetime.strptime(date_str.strip('"'), "%a %b %d %H:%M:%S +0000 %Y")
+
+
+def read_data(filename):
+
+    all_data= []
+    target= []
+    try:
+        with ZipFile(filename, "r") as zfile:
+            for name in zfile.namelist():
+                with zfile.open(name, 'rU') as readFile:
+                    lines = readFile.readlines() #.decode('utf8')
+                    all_data.extend(json.loads(line)[0][0] for line in lines)
+                    target.extend([name] * len(lines))
+                    print len(lines)
+    except Exception as e:
+        raise RuntimeError('Oops, something is wrong and data cannot be uploaded.')
+    return np.array(all_data), target
 
 
 def convert_tweet_2_data(data_path, rnd):
@@ -347,44 +337,44 @@ def convert_tweet_2_data(data_path, rnd):
     :return: bunch.Bunch
         Bunch with the data in train and test from twitter bots and human accounts
     """
-    good = get_tweets_file(data_path + "/good.json")
+    twits, target = read_data(data_path + "/twitter_v2.zip")
 
-    bots = get_tweets_file(data_path + "/bots.json")
+    all_data = np.array([(g,t) for g,t in zip(twits,target) if get_date(g['created_at']).year > 2011])
 
-    gds = [g for g in good if get_date(g[0]['created_at']).year > 2013]
-    bts = [b for b in bots if get_date(b[0]['created_at']).year > 2013]
+    twits = all_data[:,0]
 
-    data = bunch_users(gds, bts, True, True, True, rnd, class_name=['good', 'bots'])
+    target = all_data[:,1]
+
+    data = bunch_users(twits,target,  True, True, True, rnd, class_name=np.unique(target))
 
     return data
 
 
-def get_tweets_file(path):
-    import json
+def bunch_users(twits, target, lowercase, collapse_urls, collapse_mentions, rnd, class_name=None):
+    labels = None
+    if labels is None:
+        labels = [0, 1]
 
-    f = open(path)
+    _, _, timeline = user_to_doc(twits, lowercase, collapse_urls, collapse_mentions)
 
-    i = 0
-    users = []
-    data = []
-    last = 0
-    for line in f:
-        data = line.split("]][[")
-        last = len(data)
+    user_text = ["_THIS_IS_A_SEPARATOR_".join(t) for t in timeline]
+    data = bunch.Bunch(data=user_text, target=target, target_names=class_name,
+                       user_timeline=timeline)
 
-    for i, tweets in enumerate(data):
-        if i == 0:
-            t = json.loads(tweets[1:] + "]")
-        elif i == (last - 1):
-            t = json.loads("[" + tweets[:-1])
-        else:
-            t = json.loads("[" + tweets + "]")
-        users.append(t)
+    random_state = np.random.RandomState(rnd)
 
-    return users
+    indices = np.arange(len(data.target))
+    random_state.shuffle(indices)
+    data.target = np.array(data.target)[indices]
+    data_lst = np.array(data.data, dtype=object)
+    data_lst = data_lst[indices]
+    data.data = data_lst
+    data.user_timeline = np.array(data.user_timeline)[indices]
+    data.target_names = class_name
+    return data
 
 
-def load_twitter(path, shuffle=True, rnd=1):
+def load_twitter(path, shuffle=True, rnd=1, percent=.5):
     """
     load text files from twitter data
     :param path: path of the root directory of the data
@@ -395,25 +385,12 @@ def load_twitter(path, shuffle=True, rnd=1):
     :return: :raise ValueError:
     """
 
-    data = bunch.Bunch()
-
     data = convert_tweet_2_data(path, rnd)
-    data = minimum_size_sraa(data)
-
-    if shuffle:
-        random_state = np.random.RandomState(rnd)
-        indices = np.arange(data.target.shape[0])
-        random_state.shuffle(indices)
-        data.target = data.target[indices]
-        # Use an object array to shuffle: avoids memory copy
-        data_lst = np.array(data.data, dtype=object)
-        data_lst = data_lst[indices]
-        data.data = data_lst
+    # data = minimum_size_sraa(data)
 
     return data
 
 
-# ARXIV_HOME = 'C:/Users/mramire8/Documents/Datasets/arxiv'
 def load_arxiv(path, category=None, subset="all", shuffle=True, rnd=2356, percent=.5):
     """
     load text files from Aviation-auto dataset from folders to memory. It will return a 25-75 percent train test split
@@ -544,6 +521,9 @@ def load_dataset(name, path, **kwargs):
     elif "amazon" in name:
         ##########  arxiv dataset ######
         data = load_amazon(path, shuffle=shuffle, rnd=rnd, percent=percent)
+    elif "twitter" in name:
+        ##########  arxiv dataset ######
+        data = load_twitter(path, shuffle=shuffle, rnd=rnd, percent=percent)
     else:
         raise Exception("We do not know {} dataset".format(name.upper()))
 
