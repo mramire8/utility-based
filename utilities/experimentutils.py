@@ -204,6 +204,7 @@ def get_bootstrap(config):
 
     return bt, mt
 
+
 def get_tokenizer(tk_name, **kwargs):
     if tk_name == 'nltk':
         import nltk
@@ -229,6 +230,13 @@ def get_tokenizer(tk_name, **kwargs):
         if 'snip_size' in kwargs:
             k = kwargs['snip_size']
         sent_detector = FirstWindowSnippetTokenizer(k=k)
+        return sent_detector
+    elif tk_name == 'first1snippet':
+        from snippet_tokenizer import First1SnippetTokenizer
+        k = (1,1)
+        if 'snip_size' in kwargs:
+            k = kwargs['snip_size']
+        sent_detector = First1SnippetTokenizer(k=k)
         return sent_detector
     else:
         raise Exception("Unknown sentence tokenizer")
