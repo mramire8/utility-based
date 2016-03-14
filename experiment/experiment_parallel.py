@@ -109,9 +109,13 @@ class ExperimentJobs(Experiment):
 
         lrnr_setup= {'vct':self.vct, "sent_tk":self.sent_tokenizer,  "cost_model":self.cost_model,
                      'validation_set':self.validation_set}
+
         lrnr_type = cfgutil.get_section_option(self.config, 'learner', 'type')
+
+        neu_threshold = cfgutil.get_section_option(self.config, 'expert', 'threshold')
+
         if lrnr_type in ['utility-cheat','const-cheat','const-cheat-noisy']:
-            lrnr_setup.update({'snip_model':expert.oracle})
+            lrnr_setup.update({'snip_model':expert.oracle, 'threshold':neu_threshold})
 
         learners = [exputil.get_learner(cfgutil.get_section_options(self.config, 'learner'),
                                         seed=s, **lrnr_setup) for s in seeds]

@@ -78,9 +78,9 @@ class FirstK(Sequential):
 class SequentialJointCheat(JointCheat):
     """docstring for Joint"""
 
-    def __init__(self, model, snippet_fn=None, utility_fn=None, minimax=-1, seed=1, snip_model=None):
-        super(JointCheat, self).__init__(model, snippet_fn=snippet_fn, utility_fn=utility_fn,
-                                         seed=seed, minimax=minimax)
+    def __init__(self, model, snippet_fn=None, utility_fn=None, minimax=-1, seed=1, snip_model=None, neutral=.4):
+        super(SequentialJointCheat, self).__init__(model, snippet_fn=snippet_fn, utility_fn=utility_fn,
+                                         seed=seed, minimax=minimax, neutral=neutral)
         self.snippet_model = snip_model
 
     def _subsample_pool(self, rem):
@@ -111,9 +111,9 @@ class SequentialJointCheat(JointCheat):
 class SequentialJointNoisyCheat(JointNoisyCheat):
     """docstring for Joint"""
 
-    def __init__(self, model, snippet_fn=None, utility_fn=None, minimax=-1, seed=1, snip_model=None):
+    def __init__(self, model, snippet_fn=None, utility_fn=None, minimax=-1, seed=1, snip_model=None,neutral=.4):
         super(SequentialJointNoisyCheat, self).__init__(model, snippet_fn=snippet_fn, utility_fn=utility_fn,
-                                         seed=seed, minimax=minimax)
+                                         seed=seed, minimax=minimax,neutral=neutral)
         self.snippet_model = snip_model
 
     def _subsample_pool(self, rem):

@@ -140,11 +140,15 @@ def get_learner(learn_config, **kwargs):
     elif learn_config['type'] == 'const-cheat':
         from learner.sequential_utility import SequentialJointCheat
         snp_model = kwargs['snip_model']
-        learner = SequentialJointCheat(clf, snippet_fn=None, utility_fn=None, seed=seed, snip_model=snp_model)
+        thr= kwargs['threshold']
+        learner = SequentialJointCheat(clf, snippet_fn=None, utility_fn=None, seed=seed,
+                                       snip_model=snp_model,neutral=thr)
     elif learn_config['type'] == 'const-cheat-noisy':
         from learner.sequential_utility import SequentialJointNoisyCheat
         snp_model = kwargs['snip_model']
-        learner = SequentialJointNoisyCheat(clf, snippet_fn=None, utility_fn=None, seed=seed, snip_model=snp_model)
+        thr=kwargs['threshold']
+        learner = SequentialJointNoisyCheat(clf, snippet_fn=None, utility_fn=None, seed=seed,
+                                            snip_model=snp_model,neutral=thr)
     else:
         raise ValueError("We don't know {} leaner".format(learn_config['type']))
     learner.set_loss_function(learn_config['loss_function'])

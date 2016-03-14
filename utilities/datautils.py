@@ -321,7 +321,7 @@ def read_data(filename):
             for name in zfile.namelist():
                 with zfile.open(name, 'rU') as readFile:
                     lines = readFile.readlines() #.decode('utf8')
-                    all_data.extend(json.loads(line)[0][0] for line in lines)
+                    all_data.extend(json.loads(line)[0] for line in lines)
                     target.extend([name] * len(lines))
                     print len(lines)
     except Exception as e:

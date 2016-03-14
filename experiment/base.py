@@ -286,8 +286,8 @@ class Experiment(object):
         if self.verbose:
             if iteration == 0:
                 print "\nIT\tACCU\tAUC\tUTIL\tT0\tF1\tF0\tT1"
-            print "{4}-{5}\t{0:0.2f}\t{1:.3f}\t{2:.3f}\t{3:.3f}\t".format(cost, step['accuracy'], step['auc'],
-                                                                          step['util'], iteration, trial),
+            print "{4}-{5}\t{0:0.2f}\t{1:.3f}\t{2:.3f}\t{3:.3f}\t{6:.3f}\t".format(cost, step['accuracy'], step['auc'],
+                                                                          step['util'], iteration, trial, step['revisit']),
             try:
                 print "\t".join(["{0:.3f}".format(x) for x in np.reshape(oracle, 4)])
                 oracle_text = "\t".join(["{0:.3f}".format(x) for x in np.reshape(oracle, 4)])

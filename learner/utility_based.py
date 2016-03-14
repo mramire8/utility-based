@@ -79,9 +79,10 @@ class RandomK(UtilityBasedLearner):
 class JointCheat(UtilityBasedLearner):
     """docstring for Joint"""
 
-    def __init__(self, model, snippet_fn=None, utility_fn=None, minimax=-1, seed=1, snip_model=None):
+    def __init__(self, model, snippet_fn=None, utility_fn=None, minimax=-1, seed=1, snip_model=None, neutral=.4):
         super(JointCheat, self).__init__(model, snippet_fn=snippet_fn, utility_fn=utility_fn, seed=seed)
         self.snippet_model = snip_model
+        self.neutral_threshold = neutral
 
     def fit(self, data, train=[]):
 
@@ -107,9 +108,9 @@ class JointCheat(UtilityBasedLearner):
         self.snippet_model = clf
 
     def _get_snippet_probas(self, snippets):
-        def transform_label(p):
+        def transform_label(p, neutral_threshold):
             lbl = [0] * 3
-            if p.min() < .4:
+            if p.min() < neutral_threshold:
                 lbl[p.argmax()] = 1
             else:
                 lbl = np.array([0,0,1])
@@ -117,7 +118,7 @@ class JointCheat(UtilityBasedLearner):
 
         probs = [self.snippet_model.predict_proba(snip) for snip in snippets]
 
-        corrected = [[transform_label(p) for p in ps] for ps in probs]
+        corrected = [[transform_label(p,self.neutral_threshold) for p in ps] for ps in probs]
 
         return corrected
 
@@ -125,10 +126,10 @@ class JointCheat(UtilityBasedLearner):
 class JointNoisyCheat(UtilityBasedLearner):
     """docstring for Joint"""
 
-    def __init__(self, model, snippet_fn=None, utility_fn=None, minimax=-1, seed=1, snip_model=None):
+    def __init__(self, model, snippet_fn=None, utility_fn=None, minimax=-1, seed=1, snip_model=None, neutral=.4):
         super(JointNoisyCheat, self).__init__(model, snippet_fn=snippet_fn, utility_fn=utility_fn, seed=seed)
         self.snippet_model = snip_model
-
+        self.neutral_threshold=neutral
 
     def fit(self, data, train=[]):
 
@@ -154,17 +155,25 @@ class JointNoisyCheat(UtilityBasedLearner):
         self.snippet_model = clf
 
     def _get_snippet_probas(self, snippets):
-        def transform_label(p):
+        def transform_label_v1(p,neutral_threshold):
             lbl = [0] * 3
-            if p.min() < .4:
+            if p.min() < neutral_threshold:
                 lbl[p.argmax()] = p.max()
                 lbl[1-p.argmax()] = 1-p.max()
             else:
                 lbl = np.array([0,0,1])
             return np.array(lbl)
 
+        def transform_label(p, neutral_threshold):
+            lbl = [0] * 3
+            if p.min() < neutral_threshold:
+                lbl[p.argmax()] = 1
+            else:
+                lbl = np.array([0,0,1])
+            return np.array(lbl)
+
         probs = [self.snippet_model.predict_proba(snip) for snip in snippets]
 
-        corrected = [[transform_label(p) for p in ps] for ps in probs]
+        corrected = [[transform_label(p,self.neutral_threshold) for p in ps] for ps in probs]
 
         return corrected
