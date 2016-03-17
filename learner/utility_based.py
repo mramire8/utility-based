@@ -20,12 +20,12 @@ class UtilityBasedLearner(Joint):
     def loss_conditional_error(self, clf, data, target):
         probs = clf.predict_proba(data)
         loss = np.array([1 - probs[i][j] for i,j in enumerate(target)])
-        return loss.mean()
+        return loss.sum()
 
     def loss_prediction(self, clf, data, target):
         probs = clf.predict_proba(data)
         loss = np.array([probs[i][j] for i,j in enumerate(target)])
-        return loss.mean()
+        return loss.sum()
 
     def loss_error(self, clf, data, target):
         preds = clf.predict(data)

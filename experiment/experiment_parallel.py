@@ -201,6 +201,8 @@ class ExperimentJobs(Experiment):
                 query_true_labels = pool.target[query_index]
                 query_size = np.exp((np.array([pool.snippet_cost[i][j] for i,j in query])-self.cost_model['intercept'])/self.cost_model['slope'])
 
+                # print "\t".join(["s:{}-i:{}-j:{}".format(s, *q) for q,s in zip(query, query_size)])
+
                 labels = expert.label(self.get_query(pool,query), y=query_true_labels,
                                       size=pool.sizes[query_index], index=query)
 

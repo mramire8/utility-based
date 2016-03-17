@@ -1,3 +1,7 @@
 *.pyc
 .idea/
 ./results
+*.sh
+./logs
+./results
+./config_files
