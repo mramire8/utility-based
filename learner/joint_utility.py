@@ -7,6 +7,7 @@ from sklearn.cross_validation import cross_val_predict, cross_val_score
 from sklearn.metrics import accuracy_score
 from utilities import scoreutils
 
+
 #######################################################################################################################
 class Joint(StructuredLearner):
     """docstring for Joint"""
@@ -18,7 +19,8 @@ class Joint(StructuredLearner):
         self.minimax = minimax
         self.validation_index = []
         self.loss_fn = None
-        self.validation_method='eval'
+        self.validation_method = 'eval'
+        self.revisiting=False
 
     def set_minimax(self, minimax):
         if minimax == 'maximize':
@@ -31,10 +33,9 @@ class Joint(StructuredLearner):
 
     def _subsample_pool(self, rem):
         subpool = list(rem)
-        self.rnd_state.shuffle(subpool)
-        subpool = subpool[:self.subsample]
+        rnd_idx = self.rnd_state.permutation(len(subpool))
 
-        return subpool
+        return np.array(subpool)[rnd_idx[:self.subsample]]
 
     def _select_revisit(self, queries):
         reorder = self.rnd_state.permutation(len(queries))
@@ -50,7 +51,7 @@ class Joint(StructuredLearner):
         subpool = self._subsample_pool(pool.remaining)
 
         util1 = self.expected_utility(pool, subpool)  # util list of (utility_score, snipet index of max)
-        if False:
+        if self.revisiting:
             revisit = self._select_revisit(pool.revisit)
             rev_util = self.expected_utility(pool, revisit)
             util = util1 + rev_util
@@ -63,10 +64,14 @@ class Joint(StructuredLearner):
         else:
             max_util = [np.argmax(p) for p in util]  # snippet per document with max/min utility
 
-        order = np.argsort([util[i][u] for i, u in enumerate(max_util)])[::self.minimax]  # document with snippet utlity max/min
+        # document with snippet utility max/min
+        order = np.argsort([util[i][u] for i, u in enumerate(max_util)])[::self.minimax]
 
-        # index = [(subpool[i], max_util[i]) for i in order[:step]]
-        index = [a for a in [(subpool[i], max_util[i]) for i in order] if a not in pool.revisit]
+        if self.revisiting:
+            index = [a for a in [(subpool[i], max_util[i]) for i in order] if a not in pool.revisit]
+        else:
+            index = [(subpool[i], max_util[i]) for i in order[:step]]
+
         return index[:step]
 
     def expected_utility(self, data, candidates):
@@ -87,8 +92,8 @@ class Joint(StructuredLearner):
         for ut, pr, co in zip(utilities, probs, cost):  # for every document
             exp = []
             for p, c in zip(pr, co):  # for every snippet in the document
-                exp.append((p[:2] * [ut[0][2]-curr, ut[1][2]-curr]).sum() / c)  ## utility over cost, ignore lbl =2
-                exp.append(np.dot(p[:2],[ut[0][2]-curr, ut[1][2]-curr]) / c)  ## utility over cost, ignore lbl =2
+                # exp.append((p[:2] * [ut[0][2] - curr, ut[1][2] - curr]).sum() / c)  ## utility over cost, ignore lbl =2
+                exp.append(np.dot(p[:2], [ut[0][2] - curr, ut[1][2] - curr]) / c)  ## utility over cost, ignore lbl =2
 
             exp_util.extend([exp])  # one per snippet
 
@@ -110,7 +115,7 @@ class Joint(StructuredLearner):
         else:
             clf.fit(data.bow[tra_x], tra_y)
             return self.evaluation_on_validation(clf, data.validation_set.bow[data.validation],
-                                                np.array(data.validation_set.target), method=self.validation_method)
+                                                 np.array(data.validation_set.target), method=self.validation_method)
 
     def compute_utility_per_document(self, data, candidates):
         """
@@ -137,7 +142,7 @@ class Joint(StructuredLearner):
 
     def evaluation_on_validation_label(self, lbl, data, tra_x, tra_y, i):
 
-        if lbl < 2: # if not neutral
+        if lbl < 2:  # if not neutral
             clf = copy(self.model)
             x = tra_x
             y = tra_y + [lbl]
@@ -181,11 +186,11 @@ class Joint(StructuredLearner):
 
     @staticmethod
     def _safe_fit(model, x, y, labels=None):
-        lbl = [0,1]
+        lbl = [0, 1]
         if labels is not None:
             lbl = labels
         if hasattr(model, "partial_fit") and False:
-            return model.partial_fit(x,y, classes=lbl)
+            return model.partial_fit(x, y, classes=lbl)
         else:
             return model.fit(x, y)
 
@@ -204,10 +209,10 @@ class Joint(StructuredLearner):
             targets = []
             for di, si, ti in zip(candidates.index, candidates.snip, candidates.target):
                 if si is not None:
-                    queries.append(data.snippets[0 if di == 0 else ranges[di-1]:ranges[di]][si])
+                    queries.append(data.snippets[0 if di == 0 else ranges[di - 1]:ranges[di]][si])
                     targets.append(ti)
                 else:
-                    snippets = data.snippets[0 if di == 0 else ranges[di-1]:ranges[di]]
+                    snippets = data.snippets[0 if di == 0 else ranges[di - 1]:ranges[di]]
                     queries.extend(snippets)
                     targets.extend([ti] * len(snippets))
         else:
@@ -242,7 +247,7 @@ class Joint(StructuredLearner):
             queries = []
             targets = []
             for di, si, ti in zip(candidates.index, candidates.snip, candidates.target):
-                snippets = data.snippets[0 if di == 0 else ranges[di-1]:ranges[di]]
+                snippets = data.snippets[0 if di == 0 else ranges[di - 1]:ranges[di]]
                 queries.extend(snippets)
                 targets.extend([ti] * len(snippets))
         else:
@@ -279,7 +284,7 @@ class Joint(StructuredLearner):
 
         self.model = self._safe_fit(self.model, x, y)
 
-        self.current_training = [i for i,n in zip(train.index, non_neutral) if n]
+        self.current_training = [i for i, n in zip(train.index, non_neutral) if n]
         self.current_training_labels = y.tolist()
 
         snippets, labels = self._get_query_snippets(data, train)
@@ -287,20 +292,49 @@ class Joint(StructuredLearner):
         # for l, s in zip(np.array(train.target), data.sizes[train.index]):
         #     labels.extend([l] * s)
 
-        self.snippet_model = self._safe_fit(self.snippet_model, vstack(snippets), labels, labels=[0,1,2])
+        self.snippet_model = self._safe_fit(self.snippet_model, vstack(snippets), labels, labels=[0, 1, 2])
 
         return self
 
 
 #######################################################################################################################
+
+class JointUncertainty(Joint):
+    def __init__(self, model, snippet_fn=None, utility_fn=None, minimax=-1, seed=1):
+        super(JointUncertainty, self).__init__(model, snippet_fn=snippet_fn, utility_fn=utility_fn,
+                                               minimax=minimax, seed=seed)
+
+    def compute_utility_per_document(self, data, candidates):
+        probs = self.model.predict_proba(data.bow[candidates])
+        unc = 1 - probs.max(axis=1)
+        return unc
+
+    def expected_utility(self, data, candidates):
+        """
+        Compute the expected utility of each candidate instance
+        :param data: bunch of the pool
+        :param candidates: list of candidates
+        :return: list of all expected utilities per snippet per document
+        """
+        utilities = self.compute_utility_per_document(data, candidates)
+
+        cost = data.snippet_cost[candidates]
+
+        exp_util = [np.dot(c, u) for u, c in zip(utilities, cost)]
+
+        return exp_util
+
+
+#######################################################################################################################
 # Module functions
 def _evaluation_on_validation_per_label(model, lbl, data, tra_x, tra_y, i, function):
-    if lbl < 2: # if not neutral
+    if lbl < 2:  # if not neutral
         x = tra_x
         y = tra_y + [lbl]
         clf = copy(model)
         clf.fit(data.bow[x], y)
-        res = _evaluation_on_validation(clf, data.validation_set.bow[data.validation], data.validation_set.target[data.validation], function)
+        res = _evaluation_on_validation(clf, data.validation_set.bow[data.validation],
+                                        data.validation_set.target[data.validation], function)
         return (i, lbl, res)
     else:
         # utility of neutral label
@@ -308,4 +342,4 @@ def _evaluation_on_validation_per_label(model, lbl, data, tra_x, tra_y, i, funct
 
 
 def _evaluation_on_validation(clf, data, target, function):
-    return function(clf,data,target)
+    return function(clf, data, target)

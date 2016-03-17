@@ -2,6 +2,6 @@
 .idea/
 ./results
 *.sh
-./logs
-./results
-./config_files
+logs/
+results/
+config_files/
