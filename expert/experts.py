@@ -51,14 +51,17 @@ class PredictingExpert(BaseExpert):
     def __init__(self, oracle):
         super(PredictingExpert, self).__init__(oracle)
 
-    def label(self, data, y=None):
+    def label(self, query, **kwargs):#label(self, data, y=None):
+        data = query
+        if hasattr(query, 'shape'):
+            data = query
+        else:
+            data = vstack(data)
+
         return self.oracle.predict(data)
 
-    def fit(self, data, y=None, vct=None):
-        if y is not None:
-            self.oracle.fit(data.bow, y)
-        else:
-            self.oracle.fit(data.bow, data.target)
+    def fit(self, X, y=None, vct=None):
+        self.oracle.fit(X, y)
         return self
 
 

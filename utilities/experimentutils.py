@@ -55,7 +55,7 @@ def stemming(doc):
 
 
 def get_vectorizer(config):
-    limit = config['limit']
+
     vectorizer = config['vectorizer']
 
     from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
@@ -128,7 +128,8 @@ def get_learner(learn_config, **kwargs):
     elif learn_config['type'] == 'utility-cheat':
         from learner.utility_based import JointCheat
         snp_model = kwargs['snip_model']
-        learner = JointCheat(clf, snippet_fn=None, utility_fn=None, seed=seed, snip_model=snp_model)
+        thr= kwargs['threshold']
+        learner = JointCheat(clf, snippet_fn=None, utility_fn=None, seed=seed, snip_model=snp_model,neutral=thr)
 
     # random documents - snippet method
     elif learn_config['type'] == 'const-utility':

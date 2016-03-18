@@ -2,7 +2,7 @@ import numpy as np
 from scipy.sparse import vstack
 from copy import copy
 from strategy import StructuredLearner
-from sklearn.cross_validation import StratifiedKFold
+from sklearn.cross_validation import StratifiedKFold, KFold
 from sklearn.cross_validation import cross_val_predict, cross_val_score
 from sklearn.metrics import accuracy_score
 from utilities import scoreutils
@@ -74,6 +74,33 @@ class Joint(StructuredLearner):
 
         return index[:step]
 
+    @staticmethod
+    def _average_utilities(utils):
+
+        candidates = len(utils[0])
+        folds = len(utils)
+
+        utils = [[(c, l, np.mean([utils[f][c][l][2] for f in range(folds)])) for l in [0,1] ]  for c in range(candidates) ]
+
+        return utils
+
+    def compute_utilities(self, model, data, candidates):
+        if self.validation_method == 'cross-validation':
+            # raise NotImplementedError("Oops, this experiment should not be tested. Try when it works.")
+
+            tra_y = copy(self.current_training_labels)
+            tra_x = copy(self.current_training)
+
+            curr_vals, utils_vals = self._cv_measure(model, data, tra_x, tra_y, candidates, n_folds=4) # clf, data, val_index, candidates,
+            curr = np.mean(curr_vals)
+            utilities = self._average_utilities(utils_vals)
+
+        else:
+            curr = self.current_utility(model, data)
+            utilities = self.compute_utility_per_document(data, candidates)
+
+        return curr, utilities
+
     def expected_utility(self, data, candidates):
         """
         Compute the expected utility of each candidate instance
@@ -81,8 +108,10 @@ class Joint(StructuredLearner):
         :param candidates: list of candidates
         :return: list of all expected utilities per snippet per document
         """
-        curr = self.current_utility(copy(self.model), data)
-        utilities = self.compute_utility_per_document(data, candidates)
+
+        curr, utilities = self.compute_utilities(copy(self.model), data, candidates)
+        # curr = self.current_utility(copy(self.model), data)
+        # utilities = self.compute_utility_per_document(data, candidates)
 
         snippets = self._get_snippets(data, candidates)
         probs = self._get_snippet_probas(snippets)  # one per snippet
@@ -92,12 +121,53 @@ class Joint(StructuredLearner):
         for ut, pr, co in zip(utilities, probs, cost):  # for every document
             exp = []
             for p, c in zip(pr, co):  # for every snippet in the document
-                # exp.append((p[:2] * [ut[0][2] - curr, ut[1][2] - curr]).sum() / c)  ## utility over cost, ignore lbl =2
                 exp.append(np.dot(p[:2], [ut[0][2] - curr, ut[1][2] - curr]) / c)  ## utility over cost, ignore lbl =2
 
             exp_util.extend([exp])  # one per snippet
 
         return exp_util
+
+    def _cv_measure(self, clf, data, val_index, val_target, candidates, n_folds=3):
+
+        labels= np.unique(data.target)
+        utility = []
+        curr_util = []
+
+        cv_indices = val_index
+        y_target = np.array(val_target)
+
+        cv = KFold(len(cv_indices), n_folds=n_folds)
+        i = 0
+        for train, test in cv:
+
+            new_train = cv_indices[train]
+            x_train, x_test = data.bow[new_train], data.bow[cv_indices[test]]
+            y_train, y_test = y_target[train], y_target[test]
+
+            fold = []
+
+            clf.fit(x_train, y_train)
+            curr_util.append(self.loss_fn(clf, x_test, y_test))
+
+
+            for j, c in enumerate(candidates):
+                x_c = vstack([x_train, data.bow[c]])
+
+                doc_util = []
+                for lbl in labels:
+                    y = np.append(y_train, [lbl])
+
+                    clf.fit(x_c, y)
+                    doc_util.append((j, lbl, self.loss_fn(clf, x_test, y_test)))
+                    # y = y[:-1]
+
+                fold.append(doc_util)
+            utility.append(fold)
+            i += 1
+
+        return curr_util, utility
+
+
 
     def current_utility(self, clf, data):
 
