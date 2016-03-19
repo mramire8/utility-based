@@ -75,7 +75,7 @@ def load_imdb(path, subset="all", shuffle=True, rnd=2356):
         data.train.data = data_lst
         data.test.data = np.array(data.test.data, dtype=object)
 
-    data = minimum_size(data, min_size=100)
+    data = minimum_size(data, min_size=1)
 
     return data
 
@@ -439,7 +439,7 @@ def load_arxiv(path, category=None, subset="all", shuffle=True, rnd=2356, percen
         data.train.data = data_lst
         data.test.data = np.array(data.test.data, dtype=object)
 
-    # data = minimum_size(data)
+    data = minimum_size(data, min_size=1)
     return data
 
 def load_amazon(path, shuffle=True, rnd=2356, percent=.5):

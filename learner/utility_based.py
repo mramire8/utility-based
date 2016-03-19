@@ -51,7 +51,7 @@ class FirstK(UtilityBasedLearner):
         """
         subpool = self._subsample_pool(pool.remaining)
 
-        index = [(s, 1) for s in subpool[:step]]
+        index = [(s, 0) for s in subpool[:step]]
         return index
 
 #######################################################################################################################

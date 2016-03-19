@@ -131,6 +131,10 @@ def get_learner(learn_config, **kwargs):
         thr= kwargs['threshold']
         learner = JointCheat(clf, snippet_fn=None, utility_fn=None, seed=seed, snip_model=snp_model,neutral=thr)
 
+    elif learn_config['type'] == 'unc-firstk':
+        from learner.joint_utility import JointUncertainty
+        learner = JointUncertainty(clf, snippet_fn=None, utility_fn=None, seed=seed)
+
     # random documents - snippet method
     elif learn_config['type'] == 'const-utility':
         from learner.sequential_utility import Sequential
@@ -152,11 +156,16 @@ def get_learner(learn_config, **kwargs):
                                             snip_model=snp_model,neutral=thr)
     else:
         raise ValueError("We don't know {} leaner".format(learn_config['type']))
-    learner.set_loss_function(learn_config['loss_function'])
-    learner.set_sent_tokenizer(sent_tk)
-    learner.set_vct(vct)
-    learner.set_cost_model(cost_model)
-    learner.set_cost_fn(get_costfn(learn_config['cost_function']))
+
+    if hasattr(learner, 'set_loss_function'):
+        learner.set_loss_function(learn_config['loss_function'])
+    # learner.set_sent_tokenizer(sent_tk)
+    # learner.set_vct(vct)
+
+    if hasattr(learner, 'set_cost_model'):
+        learner.set_cost_model(cost_model)
+    if hasattr(learner, 'set_cost_fn'):
+        learner.set_cost_fn(get_costfn(learn_config['cost_function']))
 
     if hasattr(learner,'validation_method'):
         method = 'eval'

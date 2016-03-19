@@ -167,8 +167,6 @@ class Joint(StructuredLearner):
 
         return curr_util, utility
 
-
-
     def current_utility(self, clf, data):
 
         """
@@ -379,21 +377,46 @@ class JointUncertainty(Joint):
         unc = 1 - probs.max(axis=1)
         return unc
 
-    def expected_utility(self, data, candidates):
+    def next_query(self, pool, step):
+
         """
-        Compute the expected utility of each candidate instance
-        :param data: bunch of the pool
-        :param candidates: list of candidates
-        :return: list of all expected utilities per snippet per document
+        Select the first snippet of every instance in the pool.
+        :param pool:
+        :param step:
+        :return:
         """
-        utilities = self.compute_utility_per_document(data, candidates)
+        subpool = self._subsample_pool(pool.remaining)
 
-        cost = data.snippet_cost[candidates]
+        utility = self.compute_utility_per_document(pool, subpool)
+        cost = [c[0] for c in pool.snippet_cost[subpool]]
+        ut_cost = [1.*u/c for u,c in zip(utility, cost)]
 
-        exp_util = [np.dot(c, u) for u, c in zip(utilities, cost)]
+        order = np.argsort(ut_cost)[::-1]
 
-        return exp_util
+        index = [(subpool[i], 0) for i in order[:step]]
 
+        return index
+
+
+    def fit(self, data, train=[]):
+
+        """
+        fit an active learning strategy
+        :param data:
+        :param train_index:
+        :param snippets:
+        :return:
+        """
+        non_neutral = np.array(train.target) < 2
+        selected = np.array(train.index)[non_neutral]
+        x = data.bow[selected]
+        y = np.array(train.target)[non_neutral]
+        self.model.fit(x, y)
+
+        self.current_training = [i for i,n in zip(train.index, non_neutral) if n]
+        self.current_training_labels = y.tolist()
+
+        return self
 
 #######################################################################################################################
 # Module functions
