@@ -133,7 +133,7 @@ class Joint(StructuredLearner):
         utility = []
         curr_util = []
 
-        cv_indices = val_index
+        cv_indices = np.array(val_index)
         y_target = np.array(val_target)
 
         cv = KFold(len(cv_indices), n_folds=n_folds)
