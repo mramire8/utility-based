@@ -454,7 +454,7 @@ def load_amazon(path, shuffle=True, rnd=2356, percent=.5):
     """
 
     data = bunch.Bunch()
-
+    text = []
     try:
         if isfile(path + "/amazon_sampled_target.pkl") and isfile(path + "/amazon_sampled_text.txt.gz"):
             targets = np.array(pickle.load(open(path + "/amazon_sampled_target.pkl", 'rb')))
@@ -463,8 +463,12 @@ def load_amazon(path, shuffle=True, rnd=2356, percent=.5):
                 text = np.array([line.decode('latin1') for line in f])
         else:
             raise IOError("Oops, one of the files is not here %s" % path)
+    except MemoryError as mm:
+        print "Oops, the data is too big, we need more memory. :("
+
     except Exception as excp:
-        raise ValueError("Oops, We cannot load the data, something happend")
+        print "Exception error({0}): {1}".format(excp.errno, excp.strerror)
+        # raise ValueError("Oops, We cannot load the data, something happend")
 
     indices = ShuffleSplit(len(text), n_iter=1, test_size=percent, random_state=rnd)
     for train_ind, test_ind in indices:
