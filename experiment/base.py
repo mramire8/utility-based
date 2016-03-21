@@ -252,7 +252,10 @@ class Experiment(object):
         pred_proba = learner.predict_proba(test.bow)
         util = np.sum([p[t] for p,t in zip(pred_proba, test.target)])
         accu = metrics.accuracy_score(test.target, prediction)
-        auc = metrics.roc_auc_score(test.target, pred_proba[:, 1])
+        try:
+            auc = metrics.roc_auc_score(test.target, pred_proba[:, 1])
+        except ValueError as v:
+            auc = 0
         rep = Counter([q[0] for q in query])
         reps = sum([v-1 for v in rep.values() if v > 1])
         return {'auc': auc, 'accuracy': accu, 'util':util, 'revisit':reps}
