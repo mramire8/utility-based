@@ -86,6 +86,14 @@ class ExperimentJobs(Experiment):
         if self.validation_set == 'train':
             pool.validation = train.index
             pool.validation_set.target = train.target
+        elif self.validation_set == 'heldout':
+            new_train, held = self.split_validation(train.index, shuffle=True)
+            pool.validation = held
+            pool.validation_set.target = pool.target[held]
+            train.target = pool.target[new_train]
+            train.index = list(new_train)
+            train.snip = [None] * len(new_train)
+
         return train
 
     def start(self, n_jobs=1, pre_dispatch='2*n_jobs'):
@@ -147,9 +155,11 @@ class ExperimentJobs(Experiment):
             pool.validation_set = bunch.Bunch(bow=test.bow,target=test.target)#test
             pool.validation = test_idx if len(test_idx) >0 else range(test.bow.shape[0])
             pool.remaining = remaining
-        elif self.validation_set == 'heldout':
-            pool.remaining, pool.validation = self.split_validation(remaining)
-            pool.validation_set = bunch.Bunch(bow=pool.bow[pool.validation], target=pool.target[pool.validation])
+        elif self.validation_set == 'heldout' or self.validation_set == 'subsample':
+            # pool.remaining, pool.validation = self.split_validation(remaining)
+            pool.remaining = remaining
+            # pool.validation_set = bunch.Bunch(bow=pool.bow, target=pool.target[pool.validation])
+            pool.validation_set = bunch.Bunch(bow=pool.bow, target=[])
         elif self.validation_set == 'train':
             pool.validation_set = bunch.Bunch(bow=pool.bow,target=[])
             pool.remaining = remaining

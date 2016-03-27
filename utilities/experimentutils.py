@@ -171,6 +171,8 @@ def get_learner(learn_config, **kwargs):
         method = 'eval'
         if kwargs['validation_set'] == 'train':
             method = 'cross-validation'
+        elif kwargs['validation_set'] == 'subsample':
+            method = kwargs['validation_set']
         elif 'validation_method' in learn_config:
             method = learn_config['validation_method']
         learner.set_validation_method(method)

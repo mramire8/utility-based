@@ -34,12 +34,17 @@ class Joint(StructuredLearner):
     def _subsample_pool(self, rem):
         subpool = list(rem)
         rnd_idx = self.rnd_state.permutation(len(subpool))
-
         return np.array(subpool)[rnd_idx[:self.subsample]]
+        # return rnd_idx
+
+    def _subsample_pool_v2(self, rem):
+        subpool = list(rem)
+        rnd_idx = self.rnd_state.permutation(len(subpool)).astype(np.int64)
+        return np.array_split(np.array(subpool)[rnd_idx], range(self.subsample, len(subpool), self.subsample))
 
     def _select_revisit(self, queries):
-        reorder = self.rnd_state.permutation(len(queries))
-        return [queries[i][0] for i in reorder[:50]]
+        reorder = self.rnd_state.permutation(len(queries)).astype(np.int64)
+        return [queries[i][0] for i in reorder[:5]]
 
     def next_query(self, pool, step):
         """
@@ -48,29 +53,41 @@ class Joint(StructuredLearner):
         :param step:
         :return:
         """
-        subpool = self._subsample_pool(pool.remaining)
+        # rnd_idx = self._subsample_pool(pool.remaining)
+        index = 0
+        try_again = True
 
-        util1 = self.expected_utility(pool, subpool)  # util list of (utility_score, snipet index of max)
-        if self.revisiting:
-            revisit = self._select_revisit(pool.revisit)
-            rev_util = self.expected_utility(pool, revisit)
-            util = util1 + rev_util
-            subpool += revisit
-        else:
-            util = util1
+        # while try_again:
+        for subpool in self._subsample_pool_v2(pool.remaining):
+            # subpool = self._subsample_pool(pool.remaining)
+            subpool = list(subpool)
+            util1 = self.expected_utility(pool, subpool)  # util list of (utility_score, snipet index of max)
+            if self.revisiting:
+                revisit = self._select_revisit(pool.revisit)
+                rev_util = self.expected_utility(pool, revisit)
+                util = util1 + rev_util
+                subpool += revisit
+            else:
+                util = util1
 
-        if self.minimax > 0:  ## minimizing
-            max_util = [np.argmin(p) for p in util]  # snippet per document with max/min utility
-        else:
-            max_util = [np.argmax(p) for p in util]  # snippet per document with max/min utility
+            if self.minimax > 0:  ## minimizing
+                max_util = [np.argmin(p) for p in util]  # snippet per document with max/min utility
+            else:
+                max_util = [np.argmax(p) for p in util]  # snippet per document with max/min utility
 
-        # document with snippet utility max/min
-        order = np.argsort([util[i][u] for i, u in enumerate(max_util)])[::self.minimax]
+            # document with snippet utility max/min
+            order = np.argsort([util[i][u] for i, u in enumerate(max_util)])[::self.minimax]
 
-        if self.revisiting:
-            index = [a for a in [(subpool[i], max_util[i]) for i in order] if a not in pool.revisit]
-        else:
-            index = [(subpool[i], max_util[i]) for i in order[:step]]
+            if self.revisiting:
+                index = [a for a in [(subpool[i], max_util[i]) for i in order] if a not in pool.revisit]
+            else:
+                index = [(subpool[i], max_util[i]) for i in order[:step]]
+
+            selected = np.array([util[i][max_util[i]] for i in order[:step]])
+
+            if selected.max() > 0:
+                try_again = False
+                break
 
         return index[:step]
 
@@ -94,10 +111,15 @@ class Joint(StructuredLearner):
             curr_vals, utils_vals = self._cv_measure(model, data, tra_x, tra_y, candidates, n_folds=4) # clf, data, val_index, candidates,
             curr = np.mean(curr_vals)
             utilities = self._average_utilities(utils_vals)
-
         else:
-            curr = self.current_utility(model, data)
-            utilities = self.compute_utility_per_document(data, candidates)
+            subsample = None
+            if self.validation_method == 'subsample':
+                shuffle = self.rnd_state.choice(len(data.validation), len(data.validation), replace=True)
+                # subsample = np.array(data.validation)[shuffle]
+                subsample = shuffle
+
+            curr = self.current_utility(model, data, val_subset=subsample)
+            utilities = self.compute_utility_per_document(data, candidates, val_subset=subsample)
 
         return curr, utilities
 
@@ -167,7 +189,7 @@ class Joint(StructuredLearner):
 
         return curr_util, utility
 
-    def current_utility(self, clf, data):
+    def current_utility(self, clf, data, val_subset=None):
 
         """
         Compute the current utility of the student model
@@ -182,10 +204,14 @@ class Joint(StructuredLearner):
             return self.evaluation_on_validation(clf, data.bow[tra_x], np.array(tra_y), method=self.validation_method)
         else:
             clf.fit(data.bow[tra_x], tra_y)
-            return self.evaluation_on_validation(clf, data.validation_set.bow[data.validation],
-                                                 np.array(data.validation_set.target), method=self.validation_method)
+            if val_subset is None:
+                return self.evaluation_on_validation(clf, data.validation_set.bow[data.validation],
+                                                     np.array(data.validation_set.target), method=self.validation_method)
+            else:
+                return self.evaluation_on_validation(clf, data.validation_set.bow[data.validation][val_subset],
+                                                     np.array(data.validation_set.target)[val_subset], method=self.validation_method)
 
-    def compute_utility_per_document(self, data, candidates):
+    def compute_utility_per_document(self, data, candidates, val_subset=None):
         """
         For ever document in the candidate list, compute the utility of adding the document ot the training set with every
         possible label.
@@ -199,7 +225,7 @@ class Joint(StructuredLearner):
         utilities = []  # two per document
         for i, x_i in enumerate(candidates):
             tra_x.append(x_i)
-            uts = [self.evaluation_on_validation_label(lbl, data, tra_x, tra_y, i) for lbl in labels]
+            uts = [self.evaluation_on_validation_label(lbl, data, tra_x, tra_y, i, val_subset=val_subset) for lbl in labels]
             utilities.append(uts)
             # undo training instance
             tra_x = tra_x[:-1]
@@ -208,7 +234,7 @@ class Joint(StructuredLearner):
     def _get_snippet_probas(self, snippets):
         return [self.snippet_model.predict_proba(snip) for snip in snippets]
 
-    def evaluation_on_validation_label(self, lbl, data, tra_x, tra_y, i):
+    def evaluation_on_validation_label(self, lbl, data, tra_x, tra_y, i, val_subset=None):
 
         if lbl < 2:  # if not neutral
             clf = copy(self.model)
@@ -216,14 +242,17 @@ class Joint(StructuredLearner):
             y = tra_y + [lbl]
             if self.validation_method == 'cross-validation':
                 res = self.evaluation_on_validation(clf, data.bow[x], np.array(y), method=self.validation_method)
-
             else:
-
                 clf.fit(data.bow[x], y)
                 if data.validation_set.bow[data.validation].shape[0] != len(data.validation_set.target):
                     raise Exception("Oops, the validation data has problems")
-                res = self.evaluation_on_validation(clf, data.validation_set.bow[data.validation],
-                                                    np.array(data.validation_set.target), method=self.validation_method)
+                if val_subset is None:
+                    res = self.evaluation_on_validation(clf, data.validation_set.bow[data.validation],
+                                                        np.array(data.validation_set.target), method=self.validation_method)
+                else:
+                    res = self.evaluation_on_validation(clf, data.validation_set.bow[data.validation][val_subset],
+                                                        np.array(data.validation_set.target)[val_subset], method=self.validation_method)
+
             return i, lbl, res
         else:
             # utility of neutral label
@@ -243,12 +272,25 @@ class Joint(StructuredLearner):
             # scores.extend([predictions[i][j] for i,j in enumerate(y_test)])
         return np.sum(scores)
 
+    def average_loss(self, clf, data_bow, target, n_folds=10):
+        scores = []
+
+        for i in range(n_folds):
+            reorder = self.rnd_state.choice(len(target), len(target), replace=True)
+
+            loss = self.loss_fn(clf, data_bow[reorder], target[reorder])
+            scores.append(loss)
+
+        return np.mean(scores)
+
     def evaluation_on_validation(self, clf, data_bow, target, method=None):
         if method is None:
             raise Exception("Oops, we need the method to compute the score")
 
         if method == 'cross-validation':
             return self.cross_validation_utility(clf, data_bow, target, n_folds=10)
+        elif method == 'subsample':
+            return self.average_loss(clf, data_bow, target, n_folds=3)
         else:
             return self.loss_fn(clf, data_bow, target)
 

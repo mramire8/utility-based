@@ -349,10 +349,18 @@ class Experiment(object):
 
         return queries
 
-    def split_validation(self, remaining):
-        remaining = list(remaining)
+    def split_validation(self, remaining, shuffle=False):
+        if shuffle:
+            sh = self.rnd_state.permutation(len(remaining))
+            remaining = np.array(list(remaining))[sh]
+        else:
+            remaining = list(remaining)
         n = len(remaining)
-        half = int(n * self.split)
+
+        if isinstance(self.split, int):
+            half = n - self.split
+        else:
+            half = int(n * (1.-self.split))
         return deque(remaining[:half]), list(remaining[half:])
 
     def main_loop(self, learner, expert, budget, bootstrap, pool, test):
