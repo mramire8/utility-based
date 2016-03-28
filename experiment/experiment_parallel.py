@@ -90,7 +90,7 @@ class ExperimentJobs(Experiment):
             new_train, held = self.split_validation(train.index, shuffle=True)
             pool.validation = held
             pool.validation_set.target = pool.target[held]
-            train.target = pool.target[new_train]
+            train.target = pool.target[new_train].tolist()
             train.index = list(new_train)
             train.snip = [None] * len(new_train)
 
