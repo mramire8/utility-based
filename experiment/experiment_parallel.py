@@ -160,6 +160,11 @@ class ExperimentJobs(Experiment):
             pool.remaining = remaining
             # pool.validation_set = bunch.Bunch(bow=pool.bow, target=pool.target[pool.validation])
             pool.validation_set = bunch.Bunch(bow=pool.bow, target=[])
+        elif self.validation_set == 'heldout2':
+            pool.remaining, pool.validation = self.split_validation(remaining)
+            # pool.remaining = remaining
+            pool.validation_set = bunch.Bunch(bow=pool.bow, target=pool.target[pool.validation])
+            # pool.validation_set = bunch.Bunch(bow=pool.bow, target=[])
         elif self.validation_set == 'train':
             pool.validation_set = bunch.Bunch(bow=pool.bow,target=[])
             pool.remaining = remaining

@@ -465,10 +465,14 @@ def load_amazon(path, shuffle=True, rnd=2356, percent=.5):
             raise IOError("Oops, one of the files is not here %s" % path)
     except MemoryError as mm:
         print "Oops, the data is too big, we need more memory. :("
+        raise
 
     except Exception as excp:
         print "Exception error({0}): {1}".format(excp.errno, excp.strerror)
-        # raise ValueError("Oops, We cannot load the data, something happend")
+        raise
+
+    if len(text) <= 0:
+        raise Exception("Oops, something went wrong and the data was not loaded.")
 
     indices = ShuffleSplit(len(text), n_iter=1, test_size=percent, random_state=rnd)
     for train_ind, test_ind in indices:
