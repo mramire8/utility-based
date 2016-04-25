@@ -460,6 +460,59 @@ class JointUncertainty(Joint):
 
         return self
 
+
+class JointAAAIUncertainty(Joint):
+    def __init__(self, model, snippet_fn=None, utility_fn=None, minimax=-1, seed=1):
+        super(JointAAAIUncertainty, self).__init__(model, snippet_fn=snippet_fn, utility_fn=utility_fn,
+                                               minimax=minimax, seed=seed)
+
+    def compute_utility_per_document(self, data, candidates, val_subset=None):
+        probs = self.model.predict_proba(data.bow[candidates])
+        unc = 1 - probs.max(axis=1)
+        return unc
+
+    def next_query(self, pool, step):
+
+        """
+        Select the first snippet of every instance in the pool.
+        :param pool:
+        :param step:
+        :return:
+        """
+        subpool = self._subsample_pool(pool.remaining)
+
+        utility = self.compute_utility_per_document(pool, subpool)
+
+        snippets = self._get_snippets(pool, subpool)
+        probs = self._get_snippet_probas(snippets)  # one per snippet
+        cost = pool.snippet_cost[subpool]
+
+        util = []
+
+        for ut, pr, co in zip(utility, probs, cost):  # for every document
+            exp = []
+            for p, c in zip(pr, co):  # for every snippet in the document
+                exp.append(np.dot(p[:2], [ut , ut]) / c)  ## utility over cost, ignore lbl =2
+                # exp.append((1 - p[2]) * ut / c)  ## utility over cost, ignore lbl =2
+
+            util.extend([exp])  # one per snippet
+
+
+        #============================================================================================
+
+        if self.minimax > 0:  ## minimizing
+            max_util = [np.argmin(p) for p in util]  # snippet per document with max/min utility
+        else:
+            max_util = [np.argmax(p) for p in util]  # snippet per document with max/min utility
+
+        # document with snippet utility max/min
+        order = np.argsort([util[i][u] for i, u in enumerate(max_util)])[::self.minimax]
+
+        index = [(subpool[i], max_util[i]) for i in order[:step]]
+
+        return index[:step]
+
+
 #######################################################################################################################
 # Module functions
 def _evaluation_on_validation_per_label(model, lbl, data, tra_x, tra_y, i, function):

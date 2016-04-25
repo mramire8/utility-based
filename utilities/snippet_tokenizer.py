@@ -208,3 +208,12 @@ class FirstWindowSnippetTokenizer(SnippetTokenizer):
             all_sents.extend([p for p in pairs])
 
         return all_sents
+
+
+class FullSnippetTokenizer(object):
+
+    def __init__(self, k=(1,1)):
+        pass
+
+    def tokenize_sents(self, doc):
+        return [d for d in doc]

@@ -135,6 +135,10 @@ def get_learner(learn_config, **kwargs):
         from learner.joint_utility import JointUncertainty
         learner = JointUncertainty(clf, snippet_fn=None, utility_fn=None, seed=seed)
 
+    elif learn_config['type'] == 'unc-aaai':
+        from learner.joint_utility import JointAAAIUncertainty
+        learner = JointAAAIUncertainty(clf, snippet_fn=None, utility_fn=None, seed=seed)
+
     # random documents - snippet method
     elif learn_config['type'] == 'const-utility':
         from learner.sequential_utility import Sequential
@@ -246,6 +250,11 @@ def get_tokenizer(tk_name, **kwargs):
         if 'snip_size' in kwargs:
             k = kwargs['snip_size']
         sent_detector = FirstWindowSnippetTokenizer(k=k)
+        return sent_detector
+    elif tk_name == 'fullsnippet':
+        from snippet_tokenizer import FullSnippetTokenizer
+        k = None
+        sent_detector = FullSnippetTokenizer(k=k)
         return sent_detector
     elif tk_name == 'first1snippet':
         from snippet_tokenizer import First1SnippetTokenizer
