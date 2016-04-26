@@ -461,6 +461,33 @@ class JointUncertainty(Joint):
         return self
 
 
+class JointUncertaintyNoCost(JointUncertainty):
+
+    def __init__(self, model, snippet_fn=None, utility_fn=None, minimax=-1, seed=1):
+        super(JointUncertaintyNoCost, self).__init__(model, snippet_fn=snippet_fn, utility_fn=utility_fn,
+                                               minimax=minimax, seed=seed)
+
+    def next_query(self, pool, step):
+
+        """
+        Select the first snippet of every instance in the pool.
+        :param pool:
+        :param step:
+        :return:
+        """
+        subpool = self._subsample_pool(pool.remaining)
+
+        utility = self.compute_utility_per_document(pool, subpool)
+        # cost = [c[0] for c in pool.snippet_cost[subpool]]
+
+        order = np.argsort(utility)[::-1]
+
+        index = [(subpool[i], 0) for i in order[:step]]
+
+        return index
+
+
+
 class JointAAAIUncertainty(Joint):
     def __init__(self, model, snippet_fn=None, utility_fn=None, minimax=-1, seed=1):
         super(JointAAAIUncertainty, self).__init__(model, snippet_fn=snippet_fn, utility_fn=utility_fn,
@@ -492,13 +519,9 @@ class JointAAAIUncertainty(Joint):
         for ut, pr, co in zip(utility, probs, cost):  # for every document
             exp = []
             for p, c in zip(pr, co):  # for every snippet in the document
-                exp.append(np.dot(p[:2], [ut , ut]) / c)  ## utility over cost, ignore lbl =2
-                # exp.append((1 - p[2]) * ut / c)  ## utility over cost, ignore lbl =2
+                exp.append(np.dot(p[:2], [ut , ut]) / c)  ##
 
             util.extend([exp])  # one per snippet
-
-
-        #============================================================================================
 
         if self.minimax > 0:  ## minimizing
             max_util = [np.argmin(p) for p in util]  # snippet per document with max/min utility

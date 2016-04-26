@@ -134,8 +134,11 @@ def get_learner(learn_config, **kwargs):
     elif learn_config['type'] == 'unc-firstk':
         from learner.joint_utility import JointUncertainty
         learner = JointUncertainty(clf, snippet_fn=None, utility_fn=None, seed=seed)
+    elif learn_config['type'] == 'unc-firstk-nocost':
+        from learner.joint_utility import JointUncertaintyNoCost
+        learner = JointUncertaintyNoCost(clf, snippet_fn=None, utility_fn=None, seed=seed)
 
-    elif learn_config['type'] == 'unc-aaai':
+    elif learn_config['type'] == 'unc-aaai' or learn_config['type'] == 'dyn-aaai':
         from learner.joint_utility import JointAAAIUncertainty
         learner = JointAAAIUncertainty(clf, snippet_fn=None, utility_fn=None, seed=seed)
 

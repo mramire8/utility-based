@@ -216,4 +216,4 @@ class FullSnippetTokenizer(object):
         pass
 
     def tokenize_sents(self, doc):
-        return [d for d in doc]
+        return [[d] for d in doc]
